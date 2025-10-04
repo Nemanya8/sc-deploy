@@ -6,7 +6,7 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-league-spartan), system-ui, -apple-system, sans-serif;
+  --font-sans: var(--font-unbounded), system-ui, -apple-system, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
@@ -46,18 +46,21 @@
 :root {
   --radius: 0.5rem;
 
-  /* Polkadot Dark Theme */
-  --background: #0d0d0d;
-  --foreground: #ffffff;
+  /* Polkadot Dark Theme - matching dotlake-staking-app */
+  --primary-color: #ff3d95;      /* Vibrant Polkadot Pink */
+  --secondary-color: #c13584;    /* Darker Polkadot Purple */
+
+  --background: #121212;
+  --foreground: #f7f7f7;
 
   /* Cards & Surfaces */
-  --card: #1a1a1a;
-  --card-foreground: #ffffff;
-  --popover: #1a1a1a;
-  --popover-foreground: #ffffff;
+  --card: #1f1f1f;
+  --card-foreground: #f7f7f7;
+  --popover: #1f1f1f;
+  --popover-foreground: #f7f7f7;
 
   /* Polkadot Pink Primary */
-  --primary: #e6007a;
+  --primary: #ff3d95;
   --primary-foreground: #ffffff;
 
   /* Secondary - Dark surfaces */
@@ -65,11 +68,11 @@
   --secondary-foreground: #ffffff;
 
   /* Muted - Subtle backgrounds */
-  --muted: #262626;
-  --muted-foreground: #a1a1a1;
+  --muted: #1e1e1e;
+  --muted-foreground: #adb5bd;
 
   /* Accent - Polkadot Pink */
-  --accent: #e6007a;
+  --accent: #ff3d95;
   --accent-foreground: #ffffff;
 
   /* Destructive */
@@ -77,9 +80,9 @@
   --destructive-foreground: #ffffff;
 
   /* Borders */
-  --border: #2a2a2a;
-  --input: #2a2a2a;
-  --ring: #e6007a;
+  --border: #444;
+  --input: #444;
+  --ring: #ff3d95;
 
   /* Charts - Polkadot color palette */
   --chart-1: #e6007a;
@@ -89,49 +92,57 @@
   --chart-5: #ff8c00;
 
   /* Sidebar */
-  --sidebar: #0d0d0d;
+  --sidebar: #1e1e1e;
   --sidebar-foreground: #ffffff;
-  --sidebar-primary: #e6007a;
+  --sidebar-primary: #ff3d95;
   --sidebar-primary-foreground: #ffffff;
   --sidebar-accent: #2a2a2a;
   --sidebar-accent-foreground: #ffffff;
-  --sidebar-border: #2a2a2a;
-  --sidebar-ring: #e6007a;
+  --sidebar-border: #444;
+  --sidebar-ring: #ff3d95;
+
+  /* Header */
+  --header-bg: #1c1c1c;
+  --header-text: #f7f7f7;
 }
 
 .dark {
-  --background: #0d0d0d;
-  --foreground: #ffffff;
-  --card: #1a1a1a;
-  --card-foreground: #ffffff;
-  --popover: #1a1a1a;
-  --popover-foreground: #ffffff;
-  --primary: #e6007a;
+  --primary-color: #ff3d95;
+  --secondary-color: #c13584;
+  --background: #121212;
+  --foreground: #f7f7f7;
+  --card: #1f1f1f;
+  --card-foreground: #f7f7f7;
+  --popover: #1f1f1f;
+  --popover-foreground: #f7f7f7;
+  --primary: #ff3d95;
   --primary-foreground: #ffffff;
   --secondary: #2a2a2a;
   --secondary-foreground: #ffffff;
-  --muted: #262626;
-  --muted-foreground: #a1a1a1;
-  --accent: #e6007a;
+  --muted: #1e1e1e;
+  --muted-foreground: #adb5bd;
+  --accent: #ff3d95;
   --accent-foreground: #ffffff;
   --destructive: #ef4444;
   --destructive-foreground: #ffffff;
-  --border: #2a2a2a;
-  --input: #2a2a2a;
-  --ring: #e6007a;
+  --border: #444;
+  --input: #444;
+  --ring: #ff3d95;
   --chart-1: #e6007a;
   --chart-2: #552bbf;
   --chart-3: #00b2ff;
   --chart-4: #56f39a;
   --chart-5: #ff8c00;
-  --sidebar: #0d0d0d;
+  --sidebar: #1e1e1e;
   --sidebar-foreground: #ffffff;
-  --sidebar-primary: #e6007a;
+  --sidebar-primary: #ff3d95;
   --sidebar-primary-foreground: #ffffff;
   --sidebar-accent: #2a2a2a;
   --sidebar-accent-foreground: #ffffff;
-  --sidebar-border: #2a2a2a;
-  --sidebar-ring: #e6007a;
+  --sidebar-border: #444;
+  --sidebar-ring: #ff3d95;
+  --header-bg: #1c1c1c;
+  --header-text: #f7f7f7;
 }
 
 @layer base {
@@ -140,5 +151,8 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-family: 'Unbounded', sans-serif;
+    line-height: 1.6;
+    transition: background-color 0.3s ease, color 0.3s ease;
   }
 }

@@ -15,12 +15,6 @@ export function WalletList({ onSelectWallet }: WalletListProps) {
 
   const wallets = getSupportedWallets()
 
-  console.log("Detected wallets:", wallets.map(w => ({
-    type: w.type,
-    title: w.wallet.title,
-    installed: w.wallet.installed
-  })))
-
   const { installed, notInstalled } = wallets.reduce<{
     installed: typeof wallets
     notInstalled: typeof wallets
@@ -35,9 +29,6 @@ export function WalletList({ onSelectWallet }: WalletListProps) {
     },
     { installed: [], notInstalled: [] }
   )
-
-  console.log("Installed wallets:", installed.map(w => w.type))
-  console.log("Not installed wallets:", notInstalled.map(w => w.type))
 
   return (
     <div className="space-y-6">
