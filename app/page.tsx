@@ -1,11 +1,9 @@
 import Image from "next/image";
-import { Header } from "@/components/layout/header";
 
 export default function Home() {
   return (
-    <>
-      <Header />
-      <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
+    <div className="flex flex-col h-screen">
+      <div className="font-sans flex-1 flex items-center justify-center p-8 pb-20 gap-16 sm:p-20">
       <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
         <Image
           className="dark:invert"
@@ -102,6 +100,6 @@ export default function Home() {
         </a>
       </footer>
     </div>
-    </>
+    </div>
   );
 }

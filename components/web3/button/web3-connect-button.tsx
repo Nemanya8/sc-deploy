@@ -1,10 +1,14 @@
 "use client"
 
-import { Button } from "@/components/ui/button"
 import { useAccount } from "@/lib/web3/hooks/use-account"
 import { useWeb3Store } from "@/lib/web3/store/use-web3-store"
 import { AccountDropdown } from "./account-dropdown"
 import { Wallet } from "lucide-react"
+import {
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+} from "@/components/ui/sidebar"
 
 export function Web3ConnectButton() {
   const { account } = useAccount()
@@ -15,9 +19,13 @@ export function Web3ConnectButton() {
   }
 
   return (
-    <Button onClick={toggle} className="gap-2">
-      <Wallet className="h-4 w-4" />
-      Connect Wallet
-    </Button>
+    <SidebarMenu>
+      <SidebarMenuItem>
+        <SidebarMenuButton onClick={toggle} size="lg" className="w-full">
+          <Wallet className="h-5 w-5" />
+          <span className="font-medium">Connect Wallet</span>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+    </SidebarMenu>
   )
 }
