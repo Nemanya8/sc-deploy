@@ -22,7 +22,7 @@ const menuItems = [
   {
     title: "My Contracts",
     icon: FileCode,
-    href: "/contracts",
+    href: "/my-contracts",
   },
   {
     title: "Analytics",
