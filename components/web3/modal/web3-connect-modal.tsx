@@ -83,48 +83,57 @@ export function Web3ConnectModal() {
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-2xl">
+        <DialogHeader className="relative">
           {step !== "wallet-select" && (
             <Button
               variant="ghost"
               size="icon"
-              className="absolute left-4 top-4"
+              className="absolute -left-2 -top-1 h-8 w-8"
               onClick={handleBack}
             >
               <ArrowLeft className="h-4 w-4" />
             </Button>
           )}
-          <DialogTitle>
+          <DialogTitle className="text-center uppercase tracking-wide text-sm">
             {step === "wallet-select" && "Connect Wallet"}
             {step === "account-select" && "Select Account"}
             {step === "external-form" && "External Wallet"}
           </DialogTitle>
-          <DialogDescription>
-            {step === "wallet-select" &&
-              "Choose a wallet to connect to this application"}
-            {step === "account-select" &&
-              "Select an account from your wallet"}
-            {step === "external-form" &&
-              "Enter a Substrate address to view (read-only)"}
-          </DialogDescription>
+          {step === "wallet-select" && (
+            <DialogDescription className="text-center text-xs">
+              Choose a wallet to connect to this application
+            </DialogDescription>
+          )}
+          {step === "account-select" && (
+            <DialogDescription className="text-center text-xs">
+              Select an account from your wallet
+            </DialogDescription>
+          )}
+          {step === "external-form" && (
+            <DialogDescription className="text-center text-xs">
+              Enter a Substrate address to view (read-only)
+            </DialogDescription>
+          )}
         </DialogHeader>
 
-        {step === "wallet-select" && (
-          <WalletList onSelectWallet={handleSelectWallet} />
-        )}
+        <div className="mt-4">
+          {step === "wallet-select" && (
+            <WalletList onSelectWallet={handleSelectWallet} />
+          )}
 
-        {step === "account-select" && (
-          <AccountSelect
-            accounts={accounts}
-            isLoading={isLoading}
-            onSelectAccount={handleSelectAccount}
-          />
-        )}
+          {step === "account-select" && (
+            <AccountSelect
+              accounts={accounts}
+              isLoading={isLoading}
+              onSelectAccount={handleSelectAccount}
+            />
+          )}
 
-        {step === "external-form" && (
-          <ExternalWalletForm onSubmit={handleExternalSubmit} />
-        )}
+          {step === "external-form" && (
+            <ExternalWalletForm onSubmit={handleExternalSubmit} />
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   )

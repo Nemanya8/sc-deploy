@@ -10,11 +10,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Button } from "@/components/ui/button"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { shortenAddress } from "@/lib/web3/utils/format"
 import { useDisconnect } from "@/lib/web3/hooks/use-disconnect"
 import { LogOut, Copy, Check } from "lucide-react"
 import { useState } from "react"
+import { AccountAvatar } from "@/components/web3/ui/account-avatar"
 
 interface AccountDropdownProps {
   account: Account
@@ -33,13 +33,13 @@ export function AccountDropdown({ account }: AccountDropdownProps) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" className="gap-2">
-          <Avatar className="h-6 w-6">
-            <AvatarFallback className="text-xs">
-              {account.name?.[0]?.toUpperCase() || "?"}
-            </AvatarFallback>
-          </Avatar>
-          <span className="font-mono">
+        <Button variant="outline" className="gap-2 flex items-center">
+          <AccountAvatar
+            address={account.address}
+            size={24}
+            className="flex-shrink-0"
+          />
+          <span className="font-mono text-sm">
             {shortenAddress(account.displayAddress || account.address)}
           </span>
         </Button>

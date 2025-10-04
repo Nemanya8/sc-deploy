@@ -5,11 +5,24 @@ import { ExternalWallet } from "./external-wallet"
 const baseWallets = getWallets()
 const externalWallet = new ExternalWallet()
 
-export const SUPPORTED_WALLET_PROVIDERS: WalletProvider[] = [
-  ...baseWallets.map((wallet) => ({
+// Filter out duplicate wallets and normalize wallet types
+const uniqueWallets = baseWallets.reduce<WalletProvider[]>((acc, wallet) => {
+  const type = wallet.extensionName as WalletProviderType
+
+  // Skip if we already have this wallet type
+  if (acc.some((w) => w.type === type)) {
+    return acc
+  }
+
+  acc.push({
     wallet,
-    type: wallet.extensionName as WalletProviderType,
-  })),
+    type,
+  })
+  return acc
+}, [])
+
+export const SUPPORTED_WALLET_PROVIDERS: WalletProvider[] = [
+  ...uniqueWallets,
   {
     wallet: externalWallet,
     type: WalletProviderType.ExternalWallet,
