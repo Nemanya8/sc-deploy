@@ -4,7 +4,6 @@ export const SUPPORTED_WALLETS: WalletProviderType[] = [
   WalletProviderType.Talisman,
   WalletProviderType.SubwalletJS,
   WalletProviderType.PolkadotJS,
-  WalletProviderType.NovaWallet,
   WalletProviderType.WalletConnect,
   WalletProviderType.ExternalWallet,
 ]
@@ -34,7 +33,7 @@ export const WALLET_INFO: Record<
   },
   [WalletProviderType.NovaWallet]: {
     name: "Nova Wallet",
-    description: "Next-gen iOS & Android wallet for Polkadot & Kusama",
+    description: "Next-gen wallet for Polkadot & Kusama ecosystem",
     downloadUrl: "https://novawallet.io/",
   },
   [WalletProviderType.WalletConnect]: {

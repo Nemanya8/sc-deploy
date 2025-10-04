@@ -1,25 +1,31 @@
-import { getWallets } from "@talismn/connect-wallets"
+import { getWallets, Wallet } from "@talismn/connect-wallets"
 import { WalletProvider, WalletProviderType } from "@/types/web3"
 import { ExternalWallet } from "./external-wallet"
+import { NovaWallet } from "./nova-wallet"
 
 const baseWallets = getWallets()
 const externalWallet = new ExternalWallet()
+const novaWallet = new NovaWallet()
 
-// Filter out duplicate wallets and normalize wallet types
-const uniqueWallets = baseWallets.reduce<WalletProvider[]>((acc, wallet) => {
-  const type = wallet.extensionName as WalletProviderType
-
-  // Skip if we already have this wallet type
-  if (acc.some((w) => w.type === type)) {
-    return acc
+function normalizeProviderType(wallet: Wallet): WalletProviderType {
+  if (wallet instanceof NovaWallet) {
+    return WalletProviderType.NovaWallet
   }
+  return wallet.extensionName as WalletProviderType
+}
 
-  acc.push({
-    wallet,
-    type,
-  })
-  return acc
-}, [])
+const uniqueWallets = [
+  ...baseWallets
+    .filter(wallet => wallet.title !== 'Nova Wallet')
+    .map(wallet => ({
+      wallet,
+      type: normalizeProviderType(wallet),
+    })),
+  {
+    wallet: novaWallet,
+    type: WalletProviderType.NovaWallet,
+  },
+]
 
 export const SUPPORTED_WALLET_PROVIDERS: WalletProvider[] = [
   ...uniqueWallets,
