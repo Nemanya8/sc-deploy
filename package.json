@@ -9,6 +9,7 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@monaco-editor/react": "^4.7.0",
     "@polkadot-api/descriptors": "file:.papi/descriptors",
     "@polkadot/types": "^16.4.8",
     "@polkadot/ui-keyring": "^3.16.1",
