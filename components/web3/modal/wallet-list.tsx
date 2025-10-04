@@ -32,7 +32,6 @@ export function WalletList({ onSelectWallet }: WalletListProps) {
 
   return (
     <div className="space-y-6">
-      {/* Installed Section */}
       <div>
         <p className="text-sm text-muted-foreground mb-3">Installed</p>
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
@@ -69,12 +68,10 @@ export function WalletList({ onSelectWallet }: WalletListProps) {
         </div>
       </div>
 
-      {/* Not Installed Section */}
       {notInstalled.length > 0 && (
         <div>
           <div className="border-t border-border mb-4" />
 
-          {/* Show More Button */}
           <button
             onClick={() => setShowOthers(!showOthers)}
             className="w-full flex items-center justify-between text-sm text-muted-foreground hover:text-foreground transition-colors mb-3"
@@ -90,7 +87,6 @@ export function WalletList({ onSelectWallet }: WalletListProps) {
             </span>
           </button>
 
-          {/* Collapsible Content */}
           {showOthers && (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
               {notInstalled.map(({ wallet, type }) => {

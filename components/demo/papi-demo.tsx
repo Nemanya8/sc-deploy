@@ -1,11 +1,8 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { createClient } from "polkadot-api"
-import { getWsProvider } from "polkadot-api/ws-provider/web"
-import { withPolkadotSdkCompat } from "polkadot-api/polkadot-sdk-compat"
-import { passet } from "@polkadot-api/descriptors"
 import { useAccount } from "@/lib/web3/hooks/use-account"
+import { usePapiClient } from "@/lib/papi/hooks/use-papi-client"
 
 type AccountInfo = {
   free: bigint
@@ -15,39 +12,28 @@ type AccountInfo = {
 
 export function PapiDemo() {
   const { account } = useAccount()
+  const { client, api, ready } = usePapiClient()
   const [blockNumber, setBlockNumber] = useState<number | null>(null)
   const [blockHash, setBlockHash] = useState<string | null>(null)
   const [systemInfo, setSystemInfo] = useState<{ name: string; version: number } | null>(null)
   const [accountInfo, setAccountInfo] = useState<AccountInfo | null>(null)
-  const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     let subscription: { unsubscribe: () => void } | undefined
 
-    async function initClient() {
+    async function fetchData() {
+      if (!ready || !api || !client) return
+
       try {
-        setLoading(true)
         setError(null)
 
-        // Connect to Paseo Asset Hub via WebSocket
-        const client = createClient(
-          withPolkadotSdkCompat(
-            getWsProvider("wss://testnet-passet-hub.polkadot.io")
-          )
-        )
-
-        // Get typed API
-        const api = client.getTypedApi(passet)
-
-        // Get system info
         const chain = await api.constants.System.Version()
         setSystemInfo({
           name: chain.spec_name,
           version: chain.spec_version
         })
 
-        // Get account info if account is connected
         if (account?.address) {
           const accInfo = await api.query.System.Account.getValue(account.address)
           setAccountInfo({
@@ -55,29 +41,28 @@ export function PapiDemo() {
             reserved: accInfo.data.reserved,
             frozen: accInfo.data.frozen
           })
+        } else {
+          setAccountInfo(null)
         }
 
-        // Subscribe to finalized blocks
         subscription = client.finalizedBlock$.subscribe((finalizedBlock) => {
           setBlockNumber(finalizedBlock.number)
           setBlockHash(finalizedBlock.hash)
-          setLoading(false)
         })
       } catch (err) {
-        console.error("Error initializing PAPI:", err)
+        console.error("Error fetching PAPI data:", err)
         setError(err instanceof Error ? err.message : "Unknown error")
-        setLoading(false)
       }
     }
 
-    initClient()
+    fetchData()
 
     return () => {
       subscription?.unsubscribe()
     }
-  }, [account])
+  }, [ready, api, client, account])
 
-  if (loading) {
+  if (!ready) {
     return (
       <div className="flex items-center justify-center p-8">
         <div className="text-center">

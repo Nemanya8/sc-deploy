@@ -22,13 +22,10 @@ export function AccountAvatar({
     if (!svgRef.current || !address) return
 
     try {
-      // Encode address to ensure consistent format
       const encoded = encodeAddress(address, 42)
-      // Generate identicon SVG
       const svg = toSvg(encoded, size)
       svgRef.current.innerHTML = svg
     } catch {
-      // Fallback to basic identicon if encoding fails
       const svg = toSvg(address, size)
       svgRef.current.innerHTML = svg
     }
