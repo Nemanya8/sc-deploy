@@ -1,4 +1,4 @@
-import { WalletProviderType } from "@/types/web3"
+import { WalletProviderType } from "@/lib/web3/types/web3"
 import { useWeb3Store } from "../store/use-web3-store"
 
 export function useDisconnect() {

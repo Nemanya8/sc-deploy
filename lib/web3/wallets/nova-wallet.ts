@@ -1,5 +1,5 @@
 import { BaseDotsamaWallet } from "@talismn/connect-wallets"
-import { WalletProviderType } from "@/types/web3"
+import { WalletProviderType } from "@/lib/web3/types/web3"
 
 declare global {
   interface Window {

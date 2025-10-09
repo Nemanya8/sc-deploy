@@ -6,7 +6,7 @@ import {
   WalletProviderStatus,
   WalletProviderEntry,
   Web3State,
-} from "@/types/web3"
+} from "@/lib/web3/types/web3"
 
 interface Web3Store extends Web3State {
   toggle: () => void

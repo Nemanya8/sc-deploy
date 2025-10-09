@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query"
-import { WalletProviderType, Account } from "@/types/web3"
+import { WalletProviderType, Account } from "@/lib/web3/types/web3"
 import { getWalletByType } from "../wallets"
 import { toGenericSubstrateAddress } from "../utils/address"
 

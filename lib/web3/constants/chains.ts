@@ -1,4 +1,4 @@
-import { PolkadotNamespaceChainId } from "@/types/web3"
+import { PolkadotNamespaceChainId } from "@/lib/web3/types/web3"
 
 export const POLKADOT_APP_NAME = "Smart Contract Deploy"
 

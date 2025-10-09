@@ -1,6 +1,6 @@
 "use client"
 
-import { Account } from "@/types/web3"
+import { Account } from "@/lib/web3/types/web3"
 import { shortenAddress } from "@/lib/web3/utils/format"
 import { Check } from "lucide-react"
 import { useAccount } from "@/lib/web3/hooks/use-account"
@@ -68,6 +68,7 @@ export function AccountSelect({
             <AccountAvatar
               address={account.address}
               size={40}
+              provider={account.provider}
             />
             <div className="text-left flex-1 min-w-0">
               <div className="font-semibold text-sm truncate">

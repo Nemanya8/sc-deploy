@@ -1,5 +1,5 @@
 import { Wallet, WalletAccount } from "@talismn/connect-wallets"
-import { WalletProviderType } from "@/types/web3"
+import { WalletProviderType } from "@/lib/web3/types/web3"
 
 /**
  * Mock Wallet for "View as Wallet" functionality (read-only)

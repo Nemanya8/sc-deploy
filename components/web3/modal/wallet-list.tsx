@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { WalletProviderType } from "@/types/web3"
+import { WalletProviderType } from "@/lib/web3/types/web3"
 import { WALLET_INFO } from "@/lib/web3/constants/wallets"
 import { getSupportedWallets } from "@/lib/web3/wallets"
 import { Download, ChevronRight, Eye, ChevronDown } from "lucide-react"

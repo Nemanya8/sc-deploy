@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { useWeb3Store } from "@/lib/web3/store/use-web3-store"
-import { WalletProviderType } from "@/types/web3"
+import { WalletProviderType } from "@/lib/web3/types/web3"
 import { useConnect } from "@/lib/web3/hooks/use-connect"
 import { useWalletAccounts } from "@/lib/web3/hooks/use-accounts"
 import { WalletList } from "./wallet-list"

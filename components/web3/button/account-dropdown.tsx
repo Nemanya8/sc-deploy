@@ -1,6 +1,6 @@
 "use client"
 
-import { Account } from "@/types/web3"
+import { Account } from "@/lib/web3/types/web3"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -49,6 +49,7 @@ export function AccountDropdown({ account }: AccountDropdownProps) {
                 address={account.address}
                 size={32}
                 className="rounded-lg"
+                provider={account.provider}
               />
               <div className="grid flex-1 text-left text-sm leading-tight">
                 <span className="truncate font-medium">{account.name}</span>
@@ -71,6 +72,7 @@ export function AccountDropdown({ account }: AccountDropdownProps) {
                   address={account.address}
                   size={32}
                   className="rounded-lg"
+                  provider={account.provider}
                 />
                 <div className="grid flex-1 text-left text-sm leading-tight">
                   <span className="truncate font-medium">{account.name}</span>

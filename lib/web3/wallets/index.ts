@@ -1,5 +1,5 @@
 import { getWallets, Wallet } from "@talismn/connect-wallets"
-import { WalletProvider, WalletProviderType } from "@/types/web3"
+import { WalletProvider, WalletProviderType } from "@/lib/web3/types/web3"
 import { ExternalWallet } from "./external-wallet"
 import { NovaWallet } from "./nova-wallet"
 

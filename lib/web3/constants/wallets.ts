@@ -1,4 +1,4 @@
-import { WalletProviderType } from "@/types/web3"
+import { WalletProviderType } from "@/lib/web3/types/web3"
 
 export const SUPPORTED_WALLETS: WalletProviderType[] = [
   WalletProviderType.Talisman,

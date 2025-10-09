@@ -1,5 +1,5 @@
 import { useMutation } from "@tanstack/react-query"
-import { WalletProviderType, WalletProviderStatus } from "@/types/web3"
+import { WalletProviderType, WalletProviderStatus } from "@/lib/web3/types/web3"
 import { useWeb3Store } from "../store/use-web3-store"
 import { getWalletByType } from "../wallets"
 import { POLKADOT_APP_NAME } from "../constants/chains"

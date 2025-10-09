@@ -1,44 +1,49 @@
 "use client"
 
-import { useEffect, useRef } from "react"
-import { encodeAddress } from "@polkadot/util-crypto"
-import { toSvg } from "jdenticon"
 import { cn } from "@/lib/utils"
+import { WalletProviderType } from "@/lib/web3/types/web3"
+import { PolkadotAvatar } from "./polkadot-avatar"
+import { TalismanAvatar } from "./talisman-avatar"
 
 interface AccountAvatarProps {
   address: string
   size?: number
   className?: string
+  provider?: WalletProviderType
 }
 
 export function AccountAvatar({
   address,
   size = 40,
   className,
+  provider,
 }: AccountAvatarProps) {
-  const svgRef = useRef<HTMLDivElement>(null)
+  // Determine which avatar to use based on provider
+  const isTalisman = provider === WalletProviderType.Talisman
 
-  useEffect(() => {
-    if (!svgRef.current || !address) return
+  // Use Talisman avatar for Talisman wallet, otherwise use Polkadot avatar
+  if (isTalisman) {
+    return (
+      <div
+        className={cn(
+          "rounded-full overflow-hidden flex-shrink-0",
+          className
+        )}
+      >
+        <TalismanAvatar seed={address} size={size} />
+      </div>
+    )
+  }
 
-    try {
-      const encoded = encodeAddress(address, 42)
-      const svg = toSvg(encoded, size)
-      svgRef.current.innerHTML = svg
-    } catch {
-      const svg = toSvg(address, size)
-      svgRef.current.innerHTML = svg
-    }
-  }, [address, size])
-
+  // Default to Polkadot avatar for all other wallets
   return (
     <div
-      ref={svgRef}
       className={cn(
-        "rounded-full overflow-hidden bg-muted flex-shrink-0",
+        "rounded-full overflow-hidden flex-shrink-0",
         className
       )}
-      style={{ width: size, height: size }}
-    />
+    >
+      <PolkadotAvatar address={address} size={size} />
+    </div>
   )
 }
