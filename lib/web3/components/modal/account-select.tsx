@@ -5,7 +5,7 @@ import { shortenAddress } from "@/lib/web3/utils/format"
 import { Check } from "lucide-react"
 import { useAccount } from "@/lib/web3/hooks/use-account"
 import { cn } from "@/lib/utils"
-import { AccountAvatar } from "@/components/web3/ui/account-avatar"
+import { AccountAvatar } from "@/lib/web3/components/ui/account-avatar"
 
 interface AccountSelectProps {
   accounts: Account[]

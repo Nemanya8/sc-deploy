@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/sidebar"
 import { Rocket, FileCode, BarChart3, Settings } from "lucide-react"
 import Link from "next/link"
-import { Web3ConnectButton } from "@/components/web3/button/web3-connect-button"
+import { SidebarWeb3ConnectButton } from "@/components/web3/sidebar-web3-connect-button"
 
 const menuItems = [
   {
@@ -66,7 +66,7 @@ export function AppSidebar() {
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
-        <Web3ConnectButton />
+        <SidebarWeb3ConnectButton />
       </SidebarFooter>
     </Sidebar>
   )

@@ -13,7 +13,7 @@ import { shortenAddress } from "@/lib/web3/utils/format"
 import { useDisconnect } from "@/lib/web3/hooks/use-disconnect"
 import { LogOut, Copy, Check, ChevronsUpDown } from "lucide-react"
 import { useState } from "react"
-import { AccountAvatar } from "@/components/web3/ui/account-avatar"
+import { AccountAvatar } from "@/lib/web3/components/ui/account-avatar"
 import {
   SidebarMenu,
   SidebarMenuButton,
@@ -21,11 +21,11 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 
-interface AccountDropdownProps {
+interface SidebarAccountDropdownProps {
   account: Account
 }
 
-export function AccountDropdown({ account }: AccountDropdownProps) {
+export function SidebarAccountDropdown({ account }: SidebarAccountDropdownProps) {
   const { disconnect } = useDisconnect()
   const [copied, setCopied] = useState(false)
   const { isMobile } = useSidebar()

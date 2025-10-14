@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Unbounded } from "next/font/google";
 import "./globals.css";
-import { Web3Provider } from "@/components/web3/providers/web3-provider";
+import { Web3Provider } from "@/lib/web3/components/providers/web3-provider";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/layout/app-sidebar";
 
