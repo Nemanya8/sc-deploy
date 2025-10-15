@@ -2,7 +2,8 @@
 
 import { useState } from "react"
 import Editor from "@monaco-editor/react"
-import { Rocket, Upload, FileCode } from "lucide-react"
+import Link from "next/link"
+import { Rocket, Upload, FileCode, ArrowLeft } from "lucide-react"
 
 const SAMPLE_CONTRACT = `// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
@@ -42,8 +43,20 @@ export default function DeployPage() {
   }
 
   return (
-    <div className="flex flex-col h-screen">
-      <div className="border-b border-border bg-card p-4">
+    <div className="flex flex-col h-screen relative overflow-hidden">
+      {/* Grid Background */}
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,#4f4f4f12_1px,transparent_1px),linear-gradient(to_bottom,#4f4f4f12_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_80%_50%_at_50%_0%,#000_70%,transparent_110%)]" />
+      
+      {/* Back Button */}
+      <Link
+        href="/"
+        className="fixed top-4 left-4 z-50 flex items-center gap-2 px-4 py-2 bg-background border border-border rounded-lg hover:border-primary text-foreground"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        <span>Back</span>
+      </Link>
+      
+      <div className="relative border-b border-border bg-card p-4">
         <div className="max-w-7xl mx-auto">
           <div className="flex items-center justify-between">
             <div>
@@ -53,6 +66,14 @@ export default function DeployPage() {
               </p>
             </div>
             <div className="flex items-center gap-3">
+              <a
+                href="https://faucet.polkadot.io/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 px-4 py-2 bg-secondary text-secondary-foreground hover:bg-secondary/80 rounded-md transition-colors"
+              >
+                Get $PAS
+              </a>
               <button
                 onClick={handleCompile}
                 disabled={isCompiling}
@@ -73,7 +94,7 @@ export default function DeployPage() {
         </div>
       </div>
 
-      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
+      <div className="relative flex-1 flex flex-col lg:flex-row overflow-hidden">
         <div className="flex-1 flex flex-col border-r border-border">
           <div className="border-b border-border bg-muted/50 px-4 py-2">
             <div className="flex items-center justify-between">
@@ -150,6 +171,22 @@ export default function DeployPage() {
                     </div>
                   </div>
                 </div>
+
+                <Link
+                  href="/dashboard"
+                  className="block w-full px-6 py-3 text-center bg-background border border-border rounded-lg hover:border-primary hover:bg-primary hover:text-primary-foreground text-foreground transition-colors font-medium"
+                >
+                  Dashboard
+                </Link>
+
+                <a
+                  href="https://discord.gg/polkadot"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block w-full px-6 py-3 text-center bg-background border border-border rounded-lg hover:border-primary hover:bg-primary hover:text-primary-foreground text-foreground transition-colors font-medium"
+                >
+                  Get Help
+                </a>
               </div>
             )}
           </div>

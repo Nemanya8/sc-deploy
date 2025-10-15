@@ -9,11 +9,21 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
-import { Rocket, FileCode, BarChart3, Settings } from "lucide-react"
+import { Rocket, FileCode, BarChart3, Settings, Home, LayoutDashboard } from "lucide-react"
 import Link from "next/link"
 import { SidebarWeb3ConnectButton } from "@/components/web3/sidebar-web3-connect-button"
 
 const menuItems = [
+  {
+    title: "Home",
+    icon: Home,
+    href: "/",
+  },
+  {
+    title: "Dashboard",
+    icon: LayoutDashboard,
+    href: "/dashboard",
+  },
   {
     title: "Deploy",
     icon: Rocket,

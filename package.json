@@ -6,7 +6,8 @@
     "dev": "next dev --turbopack",
     "build": "next build --turbopack",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "papi:generate": "papi"
   },
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",
@@ -42,6 +43,7 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
+    "@polkadot-api/cli": "^0.15.3",
     "@tailwindcss/postcss": "^4",
     "@types/color": "^4.2.0",
     "@types/md5": "^2.3.5",

@@ -1,15 +1,7 @@
 import type { Metadata } from "next";
-import { Unbounded } from "next/font/google";
 import "./globals.css";
 import { Web3Provider } from "@/lib/web3/components/providers/web3-provider";
-import { SidebarProvider } from "@/components/ui/sidebar";
-import { AppSidebar } from "@/components/layout/app-sidebar";
-
-const unbounded = Unbounded({
-  subsets: ["latin"],
-  variable: "--font-unbounded",
-  weight: ["300", "400", "600", "700", "800", "900"],
-});
+import { NavMenu } from "@/components/layout/nav-menu";
 
 export const metadata: Metadata = {
   title: "Smart Contract Deploy",
@@ -23,12 +15,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="dark">
-      <body className={`${unbounded.variable} font-sans antialiased`}>
+      <body className="font-sans antialiased">
         <Web3Provider>
-          <SidebarProvider>
-            <AppSidebar />
-            <main className="flex-1 w-full">{children}</main>
-          </SidebarProvider>
+          <NavMenu />
+          <main className="w-full">{children}</main>
         </Web3Provider>
       </body>
     </html>
