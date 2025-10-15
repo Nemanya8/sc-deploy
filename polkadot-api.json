@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "chains": {
+    "passet": {
+      "wsUrl": "wss://testnet-passet-hub.polkadot.io",
+      "metadata": {
+        "version": 15
+      }
+    }
+  }
+}
+
