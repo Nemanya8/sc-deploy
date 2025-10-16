@@ -21,14 +21,14 @@ export default function Home() {
           {/* CTA Buttons */}
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-6">
             <Link
-              href="/deploy"
+              href="/dashboard"
               className="px-12 py-4 text-lg font-bold border border-border rounded-lg text-foreground hover:bg-primary hover:text-primary-foreground hover:border-primary transition-colors w-full sm:w-auto"
             >
               Deploy
             </Link>
-            
+
             <Link
-              href="/my-contracts"
+              href="/contract-explorer"
               className="px-12 py-4 text-lg font-bold border border-border rounded-lg text-foreground hover:bg-primary hover:text-primary-foreground hover:border-primary transition-colors w-full sm:w-auto"
             >
               Explore

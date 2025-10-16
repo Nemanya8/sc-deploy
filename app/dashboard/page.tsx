@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { ArrowLeft, Plus } from "lucide-react"
+import { ArrowLeft, Plus, Coins, Clock, DollarSign } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { useAccount } from "@/lib/web3/hooks/use-account"
 import { usePapiClient } from "@/lib/papi/hooks/use-papi-client"
@@ -134,13 +134,16 @@ export default function DashboardPage() {
                   ))}
                 </div>
               ) : (
-                <Link
-                  href="/deploy"
-                  className="flex flex-col items-center justify-center gap-2 p-6 border-2 border-dashed rounded-lg hover:border-primary hover:bg-accent transition-colors text-center"
-                >
-                  <Plus className="h-5 w-5" />
-                  <span className="font-medium">Deploy your first contract</span>
-                </Link>
+                <div className="flex flex-col items-center justify-center h-full gap-4">
+                  <p className="text-muted-foreground text-center">You don&apos;t have any contracts deployed</p>
+                  <Link
+                    href="/deploy"
+                    className="flex flex-col items-center justify-center gap-2 p-6 border-2 border-dashed rounded-lg hover:border-primary hover:bg-accent transition-colors text-center"
+                  >
+                    <Plus className="h-5 w-5" />
+                    <span className="font-medium">Add new contract</span>
+                  </Link>
+                </div>
               )}
             </CardContent>
           </Card>
@@ -157,23 +160,26 @@ export default function DashboardPage() {
                   <p className="text-sm text-muted-foreground">Loading...</p>
                 </div>
               ) : !account ? (
-                <p className="text-muted-foreground">Connect your wallet to view assets</p>
+                <p className="text-muted-foreground text-center">Connect your wallet to view assets</p>
               ) : accountInfo ? (
                 <>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Free Balance</p>
+                  <div className="text-center">
+                    <div className="flex items-center justify-center gap-2 mb-2">
+                      <Coins className="h-6 w-6 text-primary" />
+                      <p className="text-sm text-muted-foreground">Free Balance</p>
+                    </div>
                     <p className="text-3xl font-bold">
                       {(Number(accountInfo.free) / 1e10).toFixed(4)} PAS
                     </p>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
-                    <div>
+                    <div className="text-center">
                       <p className="text-sm text-muted-foreground">Reserved</p>
                       <p className="text-lg font-semibold">
                         {(Number(accountInfo.reserved) / 1e10).toFixed(4)} PAS
                       </p>
                     </div>
-                    <div>
+                    <div className="text-center">
                       <p className="text-sm text-muted-foreground">Frozen</p>
                       <p className="text-lg font-semibold">
                         {(Number(accountInfo.frozen) / 1e10).toFixed(4)} PAS
@@ -182,7 +188,7 @@ export default function DashboardPage() {
                   </div>
                 </>
               ) : (
-                <p className="text-muted-foreground">Loading account data...</p>
+                <p className="text-muted-foreground text-center">Loading account data...</p>
               )}
             </CardContent>
           </Card>
@@ -192,9 +198,27 @@ export default function DashboardPage() {
               <CardTitle>Current Network</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="flex items-center gap-2">
-                {ready && <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>}
-                <p className="text-2xl font-semibold">{networkName}</p>
+              <div className="text-center space-y-4">
+                <div className="flex items-center justify-center gap-2">
+                  {ready && <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>}
+                  <p className="text-2xl font-semibold">{networkName}</p>
+                </div>
+                <div className="grid grid-cols-2 gap-4 pt-2">
+                  <div className="text-center">
+                    <div className="flex items-center justify-center gap-1 mb-1">
+                      <Clock className="h-4 w-4 text-muted-foreground" />
+                      <p className="text-sm text-muted-foreground">Block Time</p>
+                    </div>
+                    <p className="text-lg font-semibold">6s</p>
+                  </div>
+                  <div className="text-center">
+                    <div className="flex items-center justify-center gap-1 mb-1">
+                      <DollarSign className="h-4 w-4 text-muted-foreground" />
+                      <p className="text-sm text-muted-foreground">Network Fee</p>
+                    </div>
+                    <p className="text-lg font-semibold">~0.001 PAS</p>
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>
