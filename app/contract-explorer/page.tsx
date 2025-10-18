@@ -4,7 +4,7 @@ import { useEffect, useState, useMemo } from "react"
 import { usePapiClient } from "@/lib/papi/hooks/use-papi-client"
 import { useAccount } from "@/lib/web3/hooks/use-account"
 import Link from "next/link"
-import { FileCode, ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react"
+import { FileCode, Filter, ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react"
 
 type CodeInfo = {
   codeHash: string
@@ -22,15 +22,16 @@ export default function MyContractsPage() {
   const [contracts, setContracts] = useState<CodeInfo[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [ownerFilter, setOwnerFilter] = useState<"all" | "mine">("all")
   const [codeTypeFilter, setCodeTypeFilter] = useState<string>("all")
   const [sortBy, setSortBy] = useState<"newest" | "oldest" | "popular">("newest")
   const [currentPage, setCurrentPage] = useState(1)
-
+  
   const CONTRACTS_PER_PAGE = 30
 
   useEffect(() => {
     async function fetchContracts() {
-      if (!ready || !api || !account) return
+      if (!ready || !api) return
 
       try {
         setLoading(true)
@@ -38,18 +39,15 @@ export default function MyContractsPage() {
 
         const entries = await api.query.Revive.CodeInfoOf.getEntries()
 
-        // Filter only contracts owned by the connected user
-        const contractsList: CodeInfo[] = entries
-          .filter((entry) => entry.value.owner === account.address)
-          .map((entry) => ({
-            codeHash: entry.keyArgs[0].asHex(),
-            owner: entry.value.owner,
-            deposit: entry.value.deposit,
-            refcount: entry.value.refcount,
-            codeLen: entry.value.code_len,
-            codeType: entry.value.code_type.type,
-            behaviourVersion: entry.value.behaviour_version,
-          }))
+        const contractsList: CodeInfo[] = entries.map((entry) => ({
+          codeHash: entry.keyArgs[0].asHex(),
+          owner: entry.value.owner,
+          deposit: entry.value.deposit,
+          refcount: entry.value.refcount,
+          codeLen: entry.value.code_len,
+          codeType: entry.value.code_type.type,
+          behaviourVersion: entry.value.behaviour_version,
+        }))
 
         setContracts(contractsList)
       } catch (err) {
@@ -61,7 +59,7 @@ export default function MyContractsPage() {
     }
 
     fetchContracts()
-  }, [ready, api, account])
+  }, [ready, api])
 
   const codeTypes = useMemo(() => {
     const types = new Set(contracts.map(c => c.codeType))
@@ -70,8 +68,12 @@ export default function MyContractsPage() {
 
   const filteredContracts = useMemo(() => {
     let filtered = contracts.filter((contract) => {
+      const ownerMatch = ownerFilter === "all" ||
+        (ownerFilter === "mine" && account?.address === contract.owner)
+
       const codeTypeMatch = codeTypeFilter === "all" || contract.codeType === codeTypeFilter
-      return codeTypeMatch
+
+      return ownerMatch && codeTypeMatch
     })
 
     // Apply sorting
@@ -85,12 +87,12 @@ export default function MyContractsPage() {
     }
 
     return sorted
-  }, [contracts, codeTypeFilter, sortBy])
+  }, [contracts, ownerFilter, codeTypeFilter, account, sortBy])
 
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1)
-  }, [codeTypeFilter, sortBy])
+  }, [ownerFilter, codeTypeFilter, sortBy])
 
   // Pagination calculations
   const totalPages = Math.ceil(filteredContracts.length / CONTRACTS_PER_PAGE)
@@ -98,26 +100,12 @@ export default function MyContractsPage() {
   const endIndex = startIndex + CONTRACTS_PER_PAGE
   const paginatedContracts = filteredContracts.slice(startIndex, endIndex)
 
-  if (!account) {
-    return (
-      <div className="flex items-center justify-center min-h-screen p-8">
-        <div className="text-center bg-card border border-border rounded-lg p-12 max-w-md">
-          <FileCode className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-foreground mb-2">Connect Your Wallet</h3>
-          <p className="text-muted-foreground">
-            Please connect your wallet to view your contracts.
-          </p>
-        </div>
-      </div>
-    )
-  }
-
   if (!ready || loading) {
     return (
       <div className="flex items-center justify-center min-h-screen p-8">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading your contracts...</p>
+          <p className="text-muted-foreground">Loading contracts...</p>
         </div>
       </div>
     )
@@ -138,7 +126,7 @@ export default function MyContractsPage() {
     <div className="min-h-screen relative">
       {/* Grid Background */}
       <div className="fixed inset-0 bg-[linear-gradient(to_right,#4f4f4f12_1px,transparent_1px),linear-gradient(to_bottom,#4f4f4f12_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_80%_50%_at_50%_0%,#000_70%,transparent_110%)]" />
-
+      
       {/* Back Button */}
       <Link
         href="/"
@@ -147,13 +135,13 @@ export default function MyContractsPage() {
         <ArrowLeft className="h-4 w-4" />
         <span>Back</span>
       </Link>
-
+      
       <div className="relative p-8 overflow-x-hidden">
         <div className="max-w-7xl mx-auto w-full">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-foreground mb-2">My Contracts</h1>
+          <h1 className="text-3xl font-bold text-foreground mb-2">All Contracts</h1>
           <p className="text-muted-foreground">
-            Smart contracts you have deployed on Paseo Asset Hub
+            All smart contracts deployed on Paseo Asset Hub
           </p>
         </div>
 
@@ -162,7 +150,7 @@ export default function MyContractsPage() {
             <FileCode className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
             <h3 className="text-lg font-semibold text-foreground mb-2">No Contracts Found</h3>
             <p className="text-muted-foreground">
-              You haven't deployed any smart contracts yet.
+              No smart contracts have been deployed yet.
             </p>
           </div>
         ) : (
@@ -170,10 +158,23 @@ export default function MyContractsPage() {
             <div className="bg-card border border-border rounded-lg p-4 w-full">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 w-full">
                 <div className="text-sm text-muted-foreground">
-                  Your Contracts: {contracts.length} | Showing: {filteredContracts.length}
+                  Total Contracts: {contracts.length} | Showing: {filteredContracts.length}
                 </div>
 
                 <div className="flex items-center gap-3 flex-wrap">
+                  <Filter className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+
+                  <select
+                    value={ownerFilter}
+                    onChange={(e) => setOwnerFilter(e.target.value as "all" | "mine")}
+                    className="bg-background border border-border rounded-md px-3 py-1.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                  >
+                    <option value="all">All Contracts</option>
+                    <option value="mine" disabled={!account}>
+                      My Contracts {!account && "(Connect Wallet)"}
+                    </option>
+                  </select>
+
                   <select
                     value={codeTypeFilter}
                     onChange={(e) => setCodeTypeFilter(e.target.value)}
@@ -289,7 +290,7 @@ export default function MyContractsPage() {
                   <div className="text-sm text-muted-foreground">
                     Showing {startIndex + 1}-{Math.min(endIndex, filteredContracts.length)} of {filteredContracts.length}
                   </div>
-
+                  
                   <div className="flex items-center gap-2 flex-wrap justify-center">
                     <button
                       onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
@@ -298,7 +299,7 @@ export default function MyContractsPage() {
                     >
                       <ChevronLeft className="h-4 w-4" />
                     </button>
-
+                    
                     <div className="flex items-center gap-1 flex-wrap justify-center max-w-full overflow-x-auto">
                       {Array.from({ length: Math.min(totalPages, 10) }, (_, i) => {
                         // Show first 10 pages or pages around current page
@@ -327,7 +328,7 @@ export default function MyContractsPage() {
                         );
                       })}
                     </div>
-
+                    
                     <button
                       onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                       disabled={currentPage === totalPages}
