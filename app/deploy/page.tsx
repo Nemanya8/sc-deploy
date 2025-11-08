@@ -10,6 +10,10 @@ import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Separator } from "@/components/ui/separator"
+import { useAccount } from "@/lib/web3/hooks/use-account"
+import { usePapiClient } from "@/lib/papi/hooks/use-papi-client"
+import { getWalletByType } from "@/lib/web3/wallets"
+import { getPolkadotSignerFromPjs } from "polkadot-api/pjs-signer"
 
 type ContractPreset = "ERC20" | "ERC721" | "ERC1155" | "Custom"
 
@@ -70,6 +74,8 @@ interface ERC1155Settings {
 }
 
 export default function DeployPage() {
+  const { account } = useAccount()
+  const { api, ready } = usePapiClient()
   const [selectedPreset, setSelectedPreset] = useState<ContractPreset>("ERC20")
   const [code, setCode] = useState(PRESET_CONTRACTS.ERC20)
   const [isCompiling, setIsCompiling] = useState(false)
@@ -79,6 +85,8 @@ export default function DeployPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [gasEstimate, setGasEstimate] = useState<any>(null)
   const [estimating, setEstimating] = useState(false)
+  const [isDeploying, setIsDeploying] = useState(false)
+  const [deploymentStatus, setDeploymentStatus] = useState<string>("")
 
   const [erc20Settings, setErc20Settings] = useState<ERC20Settings>({
     name: "MyToken",
@@ -440,7 +448,135 @@ contract ${name.replace(/\s+/g, '')} is ${inheritance.join(", ")} {${state_varia
   }
 
   const handleDeploy = async () => {
-    console.log("Deploying contract...")
+    if (!account) {
+      setDeploymentStatus("Please connect your wallet first")
+      return
+    }
+
+    if (!compilationOutput || !gasEstimate) {
+      setDeploymentStatus("Please compile the contract first")
+      return
+    }
+
+    if (!ready || !api) {
+      setDeploymentStatus("API not ready")
+      return
+    }
+
+    setIsDeploying(true)
+    setDeploymentStatus("Preparing deployment...")
+
+    try {
+      // Check account balance first
+      setDeploymentStatus("Checking account balance...")
+      const accountInfo = await api.query.System.Account.getValue(account.address)
+      const balance = accountInfo.data.free
+
+      if (balance === BigInt(0)) {
+        throw new Error("Account has no balance. Please fund your account with PAS tokens from the faucet.")
+      }
+
+      setDeploymentStatus(`Account balance: ${(Number(balance) / 1e10).toFixed(4)} PAS`)
+
+      // Get bytecode from compilation output
+      const fileName = Object.keys(compilationOutput.contracts)[0]
+      const contractName = Object.keys(compilationOutput.contracts[fileName])[0]
+      const contract = compilationOutput.contracts[fileName][contractName]
+      const bytecode = contract.evm?.bytecode?.object
+
+      if (!bytecode) {
+        throw new Error("No bytecode found in compilation output")
+      }
+
+      setDeploymentStatus("Getting wallet signer...")
+
+      // Get the wallet provider
+      const walletProvider = getWalletByType(account.provider)
+      if (!walletProvider) {
+        throw new Error("Wallet provider not found")
+      }
+
+      // Get accounts from wallet
+      await walletProvider.wallet.enable("SmartContract Deployer")
+      const accounts = await walletProvider.wallet.getAccounts()
+      const walletAccount = accounts.find(acc => acc.address === account.address)
+
+      if (!walletAccount) {
+        throw new Error("Account not found in wallet")
+      }
+
+      setDeploymentStatus("Building transaction...")
+
+      // Parse gas limits from estimate
+      const refTime = gasEstimate.gasRequired?.refTime?.replace(/,/g, '') || "500000000000"
+      const proofSize = gasEstimate.gasRequired?.proofSize?.replace(/,/g, '') || "1000000"
+      const storageDepositStr = gasEstimate.storageDeposit?.estimate?.replace(/,/g, '')
+
+      // Convert hex string to Binary format for polkadot-api
+      const hexToBytes = (hex: string) => {
+        const cleanHex = hex.startsWith('0x') ? hex.slice(2) : hex
+        const bytes: number[] = []
+        for (let i = 0; i < cleanHex.length; i += 2) {
+          bytes.push(parseInt(cleanHex.substr(i, 2), 16))
+        }
+        return bytes
+      }
+
+      const codeBytes = hexToBytes(bytecode)
+      const dataBytes: number[] = [] // Empty constructor data
+
+      // Build the transaction with Binary objects
+      const txParams = {
+        value: BigInt(0),
+        gas_limit: {
+          ref_time: BigInt(refTime),
+          proof_size: BigInt(proofSize),
+        },
+        storage_deposit_limit: storageDepositStr ? BigInt(storageDepositStr) : undefined,
+        code: { asBytes: () => codeBytes },
+        data: { asBytes: () => dataBytes },
+        salt: undefined,
+      }
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const tx = api.tx.Revive.instantiate_with_code(txParams as any)
+
+      setDeploymentStatus("Waiting for signature...")
+
+      // Create polkadot-api compatible signer using the helper function
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const walletSigner = walletAccount.signer as any
+
+      if (!walletSigner || !walletSigner.signPayload || !walletSigner.signRaw) {
+        throw new Error("Signer not available from wallet")
+      }
+
+      setDeploymentStatus("Preparing transaction signature...")
+
+      // Use the polkadot-api helper to convert PJS signer
+      // Bind methods to preserve 'this' context for different wallet implementations
+      const polkadotSigner = getPolkadotSignerFromPjs(
+        account.address,
+        walletSigner.signPayload.bind(walletSigner),
+        walletSigner.signRaw.bind(walletSigner)
+      )
+
+      // Sign and submit the transaction
+      const txHash = await tx.signAndSubmit(polkadotSigner)
+
+      setDeploymentStatus(`Transaction submitted! Hash: ${txHash}`)
+
+      // Wait for finalization (optional)
+      setTimeout(() => {
+        setDeploymentStatus(`✅ Contract deployed successfully! Hash: ${txHash}`)
+        setIsDeploying(false)
+      }, 2000)
+
+    } catch (error) {
+      console.error("Deployment error:", error)
+      setDeploymentStatus(`❌ Deployment failed: ${error instanceof Error ? error.message : String(error)}`)
+      setIsDeploying(false)
+    }
   }
 
   return (
@@ -485,10 +621,12 @@ contract ${name.replace(/\s+/g, '')} is ${inheritance.join(", ")} {${state_varia
               </button>
               <button
                 onClick={handleDeploy}
-                className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 rounded-md transition-colors"
+                disabled={isDeploying || !compilationOutput || !account}
+                className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                title={!account ? "Connect wallet to deploy" : !compilationOutput ? "Compile contract first" : ""}
               >
                 <Rocket className="h-4 w-4" />
-                Deploy
+                {isDeploying ? "Deploying..." : "Deploy"}
               </button>
             </div>
           </div>
@@ -1237,6 +1375,22 @@ contract ${name.replace(/\s+/g, '')} is ${inheritance.join(", ")} {${state_varia
                           {estimating && (
                             <div className="bg-primary/10 border border-primary rounded-lg p-3">
                               <p className="text-primary font-semibold">🔍 Estimating gas requirements...</p>
+                            </div>
+                          )}
+
+                          {deploymentStatus && (
+                            <div className={`rounded-lg p-3 border ${
+                              deploymentStatus.includes('✅') ? 'bg-green-500/10 border-green-500' :
+                              deploymentStatus.includes('❌') ? 'bg-destructive/10 border-destructive' :
+                              'bg-primary/10 border-primary'
+                            }`}>
+                              <p className={`font-semibold text-xs ${
+                                deploymentStatus.includes('✅') ? 'text-green-500' :
+                                deploymentStatus.includes('❌') ? 'text-destructive' :
+                                'text-primary'
+                              }`}>
+                                {deploymentStatus}
+                              </p>
                             </div>
                           )}
 
