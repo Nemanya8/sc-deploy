@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import Editor from "@monaco-editor/react"
 import Link from "next/link"
-import { Rocket, Upload, FileCode, ArrowLeft, Settings } from "lucide-react"
+import { Rocket, Upload, FileCode, ArrowLeft } from "lucide-react"
 import contractPresets from "@/lib/contract-presets.json"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
@@ -74,6 +74,11 @@ export default function DeployPage() {
   const [code, setCode] = useState(PRESET_CONTRACTS.ERC20)
   const [isCompiling, setIsCompiling] = useState(false)
   const [showSettings, setShowSettings] = useState(true)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [compilationOutput, setCompilationOutput] = useState<any>(null)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [gasEstimate, setGasEstimate] = useState<any>(null)
+  const [estimating, setEstimating] = useState(false)
 
   const [erc20Settings, setErc20Settings] = useState<ERC20Settings>({
     name: "MyToken",
@@ -143,11 +148,10 @@ export default function DeployPage() {
   }
 
   const generateERC20Contract = () => {
-    const { name, symbol, premint, mintable, burnable, pausable, permit, flashMinting, votes, accessControl, upgradeability, securityContact, license } = erc20Settings
+    const { name, premint, mintable, burnable, pausable, permit, flashMinting, votes, accessControl, upgradeability, license } = erc20Settings
 
-    let imports = ""
-    let inheritance = ["ERC20"]
-    let constructor_params = [`string memory _name`, `string memory _symbol`]
+    const inheritance = ["ERC20"]
+    const constructor_params = [`string memory _name`, `string memory _symbol`]
     let constructor_body = `ERC20(_name, _symbol)`
     let additional_functions = ""
     let state_variables = ""
@@ -221,10 +225,10 @@ contract ${name.replace(/\s+/g, '')} is ${inheritance.join(", ")} {${state_varia
   }
 
   const generateERC721Contract = () => {
-    const { name, symbol, baseURI, mintable, autoIncrementIds, burnable, pausable, enumerable, uriStorage, votes, accessControl, upgradeability, license } = erc721Settings
+    const { name, mintable, autoIncrementIds, burnable, pausable, enumerable, uriStorage, votes, accessControl, upgradeability, license } = erc721Settings
 
-    let inheritance = ["ERC721"]
-    let constructor_params = [`string memory _name`, `string memory _symbol`]
+    const inheritance = ["ERC721"]
+    const constructor_params = [`string memory _name`, `string memory _symbol`]
     let constructor_body = `ERC721(_name, _symbol)`
     let additional_functions = ""
     let state_variables = ""
@@ -295,10 +299,10 @@ contract ${name.replace(/\s+/g, '')} is ${inheritance.join(", ")} {${state_varia
   }
 
   const generateERC1155Contract = () => {
-    const { name, uri, mintable, burnable, supplyTracking, pausable, updatableURI, accessControl, upgradeability, license } = erc1155Settings
+    const { name, mintable, burnable, supplyTracking, pausable, updatableURI, accessControl, upgradeability, license } = erc1155Settings
 
-    let inheritance = ["ERC1155"]
-    let constructor_params = [`string memory _uri`]
+    const inheritance = ["ERC1155"]
+    const constructor_params = [`string memory _uri`]
     let constructor_body = `ERC1155(_uri)`
     let additional_functions = ""
     let state_variables = ""
@@ -378,8 +382,61 @@ contract ${name.replace(/\s+/g, '')} is ${inheritance.join(", ")} {${state_varia
 
   const handleCompile = async () => {
     setIsCompiling(true)
-    await new Promise(resolve => setTimeout(resolve, 1500))
-    setIsCompiling(false)
+    setCompilationOutput(null)
+    setGasEstimate(null)
+    try {
+      const response = await fetch('/api/compile', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ code }),
+      })
+
+      const result = await response.json()
+
+      if (response.ok) {
+        setCompilationOutput(result)
+
+        // Auto-estimate gas after successful compilation
+        if (result.contracts) {
+          const fileName = Object.keys(result.contracts)[0]
+          const contractName = Object.keys(result.contracts[fileName])[0]
+          const contract = result.contracts[fileName][contractName]
+          const bytecode = contract.evm?.bytecode?.object
+
+          if (bytecode) {
+            handleEstimateGas(bytecode)
+          }
+        }
+      } else {
+        setCompilationOutput({ error: result.error })
+      }
+    } catch (error) {
+      setCompilationOutput({ error: String(error) })
+    } finally {
+      setIsCompiling(false)
+    }
+  }
+
+  const handleEstimateGas = async (bytecode: string) => {
+    setEstimating(true)
+    setGasEstimate(null)
+    try {
+      const response = await fetch('/api/estimate-gas', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ bytecode, data: "0x", value: "0" }),
+      })
+      const result = await response.json()
+      setGasEstimate(result)
+    } catch (error) {
+      setGasEstimate({ error: String(error) })
+    } finally {
+      setEstimating(false)
+    }
   }
 
   const handleDeploy = async () => {
@@ -1157,6 +1214,159 @@ contract ${name.replace(/\s+/g, '')} is ${inheritance.join(", ")} {${state_varia
                   <p className="text-sm text-muted-foreground">Compiling contract...</p>
                 </div>
               </div>
+            ) : compilationOutput ? (
+              compilationOutput.error ? (
+                <div className="bg-destructive/10 border border-destructive rounded-lg p-4">
+                  <h3 className="text-sm font-semibold text-destructive mb-2">Compilation Failed</h3>
+                  <pre className="text-xs text-destructive whitespace-pre-wrap break-words">
+                    {JSON.stringify(compilationOutput, null, 2)}
+                  </pre>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {compilationOutput.contracts && Object.keys(compilationOutput.contracts).map((fileName) =>
+                    Object.keys(compilationOutput.contracts[fileName]).map((contractName) => {
+                      const contract = compilationOutput.contracts[fileName][contractName]
+                      return (
+                        <div key={contractName} className="space-y-3 text-xs">
+                          <h3 className="text-sm font-bold text-primary">instantiateWithCode Parameters:</h3>
+                          <p className="text-foreground">
+                            <span className="text-muted-foreground">Contract:</span> {contractName}
+                          </p>
+
+                          {estimating && (
+                            <div className="bg-primary/10 border border-primary rounded-lg p-3">
+                              <p className="text-primary font-semibold">🔍 Estimating gas requirements...</p>
+                            </div>
+                          )}
+
+                          {gasEstimate && (
+                            <div className="bg-primary/10 border border-primary rounded-lg p-3">
+                              <p className="text-primary font-semibold mb-2">Gas Estimation Results:</p>
+                              {gasEstimate.error ? (
+                                <p className="text-destructive">{gasEstimate.error}</p>
+                              ) : (
+                                <div className="space-y-1">
+                                  <p>Gas Required: {JSON.stringify(gasEstimate.gasRequired)}</p>
+                                  <p>Storage Deposit: {JSON.stringify(gasEstimate.storageDeposit)}</p>
+                                  {gasEstimate.debugMessage && (
+                                    <p className="text-muted-foreground mt-2">{gasEstimate.debugMessage}</p>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          <div>
+                            <p className="text-muted-foreground mb-1">value:</p>
+                            <div className="bg-muted rounded-md p-2">0</div>
+                          </div>
+
+                          <div>
+                            <p className="text-muted-foreground mb-1">gasLimit:</p>
+                            <div className="bg-muted rounded-md p-2 pl-4">
+                              {gasEstimate && !gasEstimate.error ? (
+                                <>
+                                  <p>refTime: {gasEstimate.gasRequired?.refTime || "500,000,000,000"}</p>
+                                  <p>proofSize: {gasEstimate.gasRequired?.proofSize || "1,000,000"}</p>
+                                </>
+                              ) : (
+                                <>
+                                  <p>refTime: 500,000,000,000 (500B)</p>
+                                  <p>proofSize: 1,000,000 (1M)</p>
+                                </>
+                              )}
+                            </div>
+                            <p className="text-yellow-600 dark:text-yellow-500 mt-1">
+                              ⚠️ Click &quot;Estimate Gas&quot; for accurate values or use defaults
+                            </p>
+                          </div>
+
+                          <div>
+                            <p className="text-muted-foreground mb-1">storageDepositLimit:</p>
+                            <div className="bg-muted rounded-md p-2">
+                              {gasEstimate && !gasEstimate.error && gasEstimate.storageDeposit ? (
+                                <div>
+                                  <p className="font-semibold text-primary">{gasEstimate.storageDeposit.estimate}</p>
+                                  <p className="text-xs text-muted-foreground mt-1">≈ {gasEstimate.storageDeposit.humanReadable}</p>
+                                </div>
+                              ) : (
+                                "Click 'Estimate Gas' above to calculate"
+                              )}
+                            </div>
+                            <p className="text-yellow-600 dark:text-yellow-500 mt-1">
+                              ⚠️ {gasEstimate?.storageDeposit?.recommendation || "Storage deposit is required. Use gas estimation to calculate it."}
+                            </p>
+                            <details className="mt-2">
+                              <summary className="text-muted-foreground cursor-pointer hover:text-foreground">
+                                ℹ️ About storage deposit
+                              </summary>
+                              <div className="mt-2 bg-muted p-2 rounded">
+                                <p className="mb-2">Storage deposit covers the cost of storing your contract on-chain.</p>
+                                <p className="mb-2">It&apos;s calculated based on:</p>
+                                <ul className="list-disc ml-4 space-y-1">
+                                  <li>Contract bytecode size</li>
+                                  <li>Storage variables in your contract</li>
+                                  <li>Network storage costs per byte</li>
+                                </ul>
+                                <p className="mt-2 text-primary">💡 This deposit is refundable when you remove the contract!</p>
+                              </div>
+                            </details>
+                          </div>
+
+                          <div>
+                            <p className="text-muted-foreground mb-1">code (bytecode):</p>
+                            <p className="text-yellow-600 dark:text-yellow-500 mb-1">
+                              ⚠️ In Polkadot.js Apps, use &quot;file upload&quot; mode and paste the hex below
+                            </p>
+                            <div className="bg-muted rounded-md p-2 break-all font-mono">
+                              {contract.evm?.bytecode?.object || "No bytecode"}
+                            </div>
+                            <details className="mt-2">
+                              <summary className="text-muted-foreground cursor-pointer hover:text-foreground">
+                                ℹ️ How to input bytecode in Polkadot.js Apps
+                              </summary>
+                              <div className="mt-2 bg-muted p-2 rounded">
+                                <p className="mb-2">When filling the <code className="bg-background px-1">code</code> parameter:</p>
+                                <ol className="list-decimal ml-4 space-y-1">
+                                  <li>Select &quot;file upload&quot; from the dropdown</li>
+                                  <li>Click the text area that appears</li>
+                                  <li>Paste the bytecode hex string (including 0x prefix)</li>
+                                  <li>Or choose &quot;0x prefixed hex&quot; and paste directly</li>
+                                </ol>
+                                <p className="mt-2 text-yellow-600 dark:text-yellow-500">
+                                  Do NOT use &quot;upload&quot; enum - use raw hex input!
+                                </p>
+                              </div>
+                            </details>
+                          </div>
+
+                          <div>
+                            <p className="text-muted-foreground mb-1">data (constructor input):</p>
+                            <div className="bg-muted rounded-md p-2">
+                              <p className="mb-1 font-mono">0x</p>
+                              <details className="mt-2">
+                                <summary className="text-muted-foreground cursor-pointer hover:text-foreground">
+                                  ℹ️ About constructor data
+                                </summary>
+                                <div className="mt-2 bg-background p-2 rounded">
+                                  <p className="mb-1">The contract has no constructor parameters, so use empty data (0x).</p>
+                                  <p className="mb-1">If your contract has a constructor with parameters, you need to encode them.</p>
+                                </div>
+                              </details>
+                            </div>
+                          </div>
+
+                          <div>
+                            <p className="text-muted-foreground mb-1">salt:</p>
+                            <div className="bg-muted rounded-md p-2">None</div>
+                          </div>
+                        </div>
+                      )
+                    })
+                  )}
+                </div>
+              )
             ) : (
               <div className="space-y-4">
                 <div className="bg-card border border-border rounded-lg p-4">

@@ -69,7 +69,7 @@ export default function MyContractsPage() {
   }, [contracts])
 
   const filteredContracts = useMemo(() => {
-    let filtered = contracts.filter((contract) => {
+    const filtered = contracts.filter((contract) => {
       const codeTypeMatch = codeTypeFilter === "all" || contract.codeType === codeTypeFilter
       return codeTypeMatch
     })
@@ -162,7 +162,7 @@ export default function MyContractsPage() {
             <FileCode className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
             <h3 className="text-lg font-semibold text-foreground mb-2">No Contracts Found</h3>
             <p className="text-muted-foreground">
-              You haven't deployed any smart contracts yet.
+              You haven&apos;t deployed any smart contracts yet.
             </p>
           </div>
         ) : (

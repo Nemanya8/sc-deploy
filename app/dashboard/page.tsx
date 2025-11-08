@@ -29,7 +29,7 @@ export default function DashboardPage() {
   const [accountInfo, setAccountInfo] = useState<AccountInfo | null>(null)
   const [networkName, setNetworkName] = useState<string>("Loading...")
   const [contracts, setContracts] = useState<CodeInfo[]>([])
-  const [error, setError] = useState<string | null>(null)
+  const [, setError] = useState<string | null>(null)
 
   useEffect(() => {
     async function fetchData() {
