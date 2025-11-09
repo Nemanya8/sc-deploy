@@ -1,4 +1,4 @@
-import { Wallet, WalletAccount } from "@talismn/connect-wallets"
+import { Wallet } from "@talismn/connect-wallets"
 
 export enum WalletProviderType {
   PolkadotJS = "polkadot-js",

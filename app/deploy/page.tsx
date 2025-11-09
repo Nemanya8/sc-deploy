@@ -44,7 +44,6 @@ export default function DeployPage() {
   const [compilationOutput, setCompilationOutput] = useState<any>(null)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [gasEstimate, setGasEstimate] = useState<any>(null)
-  const [estimating, setEstimating] = useState(false)
   const [isDeploying, setIsDeploying] = useState(false)
 
   const [erc20Settings, setErc20Settings] = useState<Required<ERC20Options>>({
@@ -174,6 +173,7 @@ export default function DeployPage() {
     } else if (selectedPreset === "Custom") {
       generateCustomContract()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [erc20Settings, erc721Settings, erc1155Settings, governorSettings, customSettings, selectedPreset])
 
   const updateERC20Setting = <K extends keyof Required<ERC20Options>>(key: K, value: Required<ERC20Options>[K]) => {
@@ -269,7 +269,6 @@ export default function DeployPage() {
   }
 
   const handleEstimateGas = async (bytecode: string) => {
-    setEstimating(true)
     setGasEstimate(null)
     try {
       const response = await fetch('/api/estimate-gas', {
@@ -298,8 +297,6 @@ export default function DeployPage() {
         duration: 5000,
       })
       setGasEstimate({ error: errorMsg })
-    } finally {
-      setEstimating(false)
     }
   }
 

@@ -44,7 +44,7 @@ function resolveImports(importPath: string, visited = new Set<string>()): Record
         }
       }
     }
-  } catch (error) {
+  } catch {
     // Silently handle import resolution errors
   }
 
