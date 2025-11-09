@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import Editor from "@monaco-editor/react"
 import Link from "next/link"
-import { Rocket, Upload, FileCode, ArrowLeft } from "lucide-react"
+import { Rocket, FileCode, ArrowLeft } from "lucide-react"
 import contractPresets from "@/lib/contract-presets.json"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
@@ -14,6 +14,7 @@ import { useAccount } from "@/lib/web3/hooks/use-account"
 import { usePapiClient } from "@/lib/papi/hooks/use-papi-client"
 import { getWalletByType } from "@/lib/web3/wallets"
 import { getPolkadotSignerFromPjs } from "polkadot-api/pjs-signer"
+import { toast } from "sonner"
 
 type ContractPreset = "ERC20" | "ERC721" | "ERC1155" | "Custom"
 
@@ -86,7 +87,6 @@ export default function DeployPage() {
   const [gasEstimate, setGasEstimate] = useState<any>(null)
   const [estimating, setEstimating] = useState(false)
   const [isDeploying, setIsDeploying] = useState(false)
-  const [deploymentStatus, setDeploymentStatus] = useState<string>("")
 
   const [erc20Settings, setErc20Settings] = useState<ERC20Settings>({
     name: "MyToken",
@@ -405,6 +405,7 @@ contract ${name.replace(/\s+/g, '')} is ${inheritance.join(", ")} {${state_varia
 
       if (response.ok) {
         setCompilationOutput(result)
+        toast.success("Compilation successful!")
 
         // Auto-estimate gas after successful compilation
         if (result.contracts) {
@@ -419,9 +420,11 @@ contract ${name.replace(/\s+/g, '')} is ${inheritance.join(", ")} {${state_varia
         }
       } else {
         setCompilationOutput({ error: result.error })
+        toast.error("Compilation failed")
       }
     } catch (error) {
       setCompilationOutput({ error: String(error) })
+      toast.error("Compilation failed")
     } finally {
       setIsCompiling(false)
     }
@@ -449,34 +452,31 @@ contract ${name.replace(/\s+/g, '')} is ${inheritance.join(", ")} {${state_varia
 
   const handleDeploy = async () => {
     if (!account) {
-      setDeploymentStatus("Please connect your wallet first")
+      toast.error("Please connect your wallet first")
       return
     }
 
     if (!compilationOutput || !gasEstimate) {
-      setDeploymentStatus("Please compile the contract first")
+      toast.error("Please compile the contract first")
       return
     }
 
     if (!ready || !api) {
-      setDeploymentStatus("API not ready")
+      toast.error("API not ready")
       return
     }
 
     setIsDeploying(true)
-    setDeploymentStatus("Preparing deployment...")
+    toast.loading("Preparing deployment...")
 
     try {
       // Check account balance first
-      setDeploymentStatus("Checking account balance...")
       const accountInfo = await api.query.System.Account.getValue(account.address)
       const balance = accountInfo.data.free
 
       if (balance === BigInt(0)) {
         throw new Error("Account has no balance. Please fund your account with PAS tokens from the faucet.")
       }
-
-      setDeploymentStatus(`Account balance: ${(Number(balance) / 1e10).toFixed(4)} PAS`)
 
       // Get bytecode from compilation output
       const fileName = Object.keys(compilationOutput.contracts)[0]
@@ -487,8 +487,6 @@ contract ${name.replace(/\s+/g, '')} is ${inheritance.join(", ")} {${state_varia
       if (!bytecode) {
         throw new Error("No bytecode found in compilation output")
       }
-
-      setDeploymentStatus("Getting wallet signer...")
 
       // Get the wallet provider
       const walletProvider = getWalletByType(account.provider)
@@ -504,8 +502,6 @@ contract ${name.replace(/\s+/g, '')} is ${inheritance.join(", ")} {${state_varia
       if (!walletAccount) {
         throw new Error("Account not found in wallet")
       }
-
-      setDeploymentStatus("Building transaction...")
 
       // Parse gas limits from estimate
       const refTime = gasEstimate.gasRequired?.refTime?.replace(/,/g, '') || "500000000000"
@@ -541,8 +537,6 @@ contract ${name.replace(/\s+/g, '')} is ${inheritance.join(", ")} {${state_varia
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const tx = api.tx.Revive.instantiate_with_code(txParams as any)
 
-      setDeploymentStatus("Waiting for signature...")
-
       // Create polkadot-api compatible signer using the helper function
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const walletSigner = walletAccount.signer as any
@@ -550,8 +544,6 @@ contract ${name.replace(/\s+/g, '')} is ${inheritance.join(", ")} {${state_varia
       if (!walletSigner || !walletSigner.signPayload || !walletSigner.signRaw) {
         throw new Error("Signer not available from wallet")
       }
-
-      setDeploymentStatus("Preparing transaction signature...")
 
       // Use the polkadot-api helper to convert PJS signer
       // Bind methods to preserve 'this' context for different wallet implementations
@@ -562,19 +554,51 @@ contract ${name.replace(/\s+/g, '')} is ${inheritance.join(", ")} {${state_varia
       )
 
       // Sign and submit the transaction
-      const txHash = await tx.signAndSubmit(polkadotSigner)
+      const txHashResult = await tx.signAndSubmit(polkadotSigner)
 
-      setDeploymentStatus(`Transaction submitted! Hash: ${txHash}`)
+      // Log the result to see its structure
+      console.log("Transaction result:", txHashResult)
+      console.log("Transaction result type:", typeof txHashResult)
+
+      // Extract the actual hash - it might be in different formats
+      let txHash: string
+      if (typeof txHashResult === 'string') {
+        txHash = txHashResult
+      } else if (txHashResult && typeof txHashResult === 'object') {
+        // Try different possible properties
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const result = txHashResult as any
+        txHash = result.txHash || result.hash || result.toString()
+      } else {
+        txHash = String(txHashResult)
+      }
+
+      console.log("Extracted hash:", txHash)
+
+      toast.dismiss()
+
+      toast.success("Contract deployment successful!", {
+        description: `Transaction Hash: ${txHash}`,
+        duration: 10000,
+        action: {
+          label: "View Contract",
+          onClick: () => window.location.href = `/contract/${txHash}`,
+        },
+      })
 
       // Wait for finalization (optional)
       setTimeout(() => {
-        setDeploymentStatus(`✅ Contract deployed successfully! Hash: ${txHash}`)
         setIsDeploying(false)
       }, 2000)
 
     } catch (error) {
       console.error("Deployment error:", error)
-      setDeploymentStatus(`❌ Deployment failed: ${error instanceof Error ? error.message : String(error)}`)
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      toast.dismiss()
+      toast.error("Deployment failed", {
+        description: errorMessage,
+        duration: 10000,
+      })
       setIsDeploying(false)
     }
   }
@@ -1300,7 +1324,7 @@ contract ${name.replace(/\s+/g, '')} is ${inheritance.join(", ")} {${state_varia
           </div>
         )}
 
-        <div className="flex-1 flex flex-col border-r border-border">
+        <div className="flex-1 flex flex-col">
           <div className="border-b border-border bg-muted/50 px-4 py-3">
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-sm font-semibold text-foreground">Contract Editor</h2>
@@ -1337,241 +1361,6 @@ contract ${name.replace(/\s+/g, '')} is ${inheritance.join(", ")} {${state_varia
                 tabSize: 2,
               }}
             />
-          </div>
-        </div>
-
-        <div className="w-full lg:w-96 flex flex-col bg-muted/30">
-          <div className="border-b border-border bg-muted/50 px-4 py-2">
-            <h2 className="text-sm font-semibold text-foreground">Compilation Output</h2>
-          </div>
-          <div className="flex-1 p-4 overflow-auto">
-            {isCompiling ? (
-              <div className="flex items-center justify-center h-full">
-                <div className="text-center">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
-                  <p className="text-sm text-muted-foreground">Compiling contract...</p>
-                </div>
-              </div>
-            ) : compilationOutput ? (
-              compilationOutput.error ? (
-                <div className="bg-destructive/10 border border-destructive rounded-lg p-4">
-                  <h3 className="text-sm font-semibold text-destructive mb-2">Compilation Failed</h3>
-                  <pre className="text-xs text-destructive whitespace-pre-wrap break-words">
-                    {JSON.stringify(compilationOutput, null, 2)}
-                  </pre>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {compilationOutput.contracts && Object.keys(compilationOutput.contracts).map((fileName) =>
-                    Object.keys(compilationOutput.contracts[fileName]).map((contractName) => {
-                      const contract = compilationOutput.contracts[fileName][contractName]
-                      return (
-                        <div key={contractName} className="space-y-3 text-xs">
-                          <h3 className="text-sm font-bold text-primary">instantiateWithCode Parameters:</h3>
-                          <p className="text-foreground">
-                            <span className="text-muted-foreground">Contract:</span> {contractName}
-                          </p>
-
-                          {estimating && (
-                            <div className="bg-primary/10 border border-primary rounded-lg p-3">
-                              <p className="text-primary font-semibold">🔍 Estimating gas requirements...</p>
-                            </div>
-                          )}
-
-                          {deploymentStatus && (
-                            <div className={`rounded-lg p-3 border ${
-                              deploymentStatus.includes('✅') ? 'bg-green-500/10 border-green-500' :
-                              deploymentStatus.includes('❌') ? 'bg-destructive/10 border-destructive' :
-                              'bg-primary/10 border-primary'
-                            }`}>
-                              <p className={`font-semibold text-xs ${
-                                deploymentStatus.includes('✅') ? 'text-green-500' :
-                                deploymentStatus.includes('❌') ? 'text-destructive' :
-                                'text-primary'
-                              }`}>
-                                {deploymentStatus}
-                              </p>
-                            </div>
-                          )}
-
-                          {gasEstimate && (
-                            <div className="bg-primary/10 border border-primary rounded-lg p-3">
-                              <p className="text-primary font-semibold mb-2">Gas Estimation Results:</p>
-                              {gasEstimate.error ? (
-                                <p className="text-destructive">{gasEstimate.error}</p>
-                              ) : (
-                                <div className="space-y-1">
-                                  <p>Gas Required: {JSON.stringify(gasEstimate.gasRequired)}</p>
-                                  <p>Storage Deposit: {JSON.stringify(gasEstimate.storageDeposit)}</p>
-                                  {gasEstimate.debugMessage && (
-                                    <p className="text-muted-foreground mt-2">{gasEstimate.debugMessage}</p>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                          )}
-
-                          <div>
-                            <p className="text-muted-foreground mb-1">value:</p>
-                            <div className="bg-muted rounded-md p-2">0</div>
-                          </div>
-
-                          <div>
-                            <p className="text-muted-foreground mb-1">gasLimit:</p>
-                            <div className="bg-muted rounded-md p-2 pl-4">
-                              {gasEstimate && !gasEstimate.error ? (
-                                <>
-                                  <p>refTime: {gasEstimate.gasRequired?.refTime || "500,000,000,000"}</p>
-                                  <p>proofSize: {gasEstimate.gasRequired?.proofSize || "1,000,000"}</p>
-                                </>
-                              ) : (
-                                <>
-                                  <p>refTime: 500,000,000,000 (500B)</p>
-                                  <p>proofSize: 1,000,000 (1M)</p>
-                                </>
-                              )}
-                            </div>
-                            <p className="text-yellow-600 dark:text-yellow-500 mt-1">
-                              ⚠️ Click &quot;Estimate Gas&quot; for accurate values or use defaults
-                            </p>
-                          </div>
-
-                          <div>
-                            <p className="text-muted-foreground mb-1">storageDepositLimit:</p>
-                            <div className="bg-muted rounded-md p-2">
-                              {gasEstimate && !gasEstimate.error && gasEstimate.storageDeposit ? (
-                                <div>
-                                  <p className="font-semibold text-primary">{gasEstimate.storageDeposit.estimate}</p>
-                                  <p className="text-xs text-muted-foreground mt-1">≈ {gasEstimate.storageDeposit.humanReadable}</p>
-                                </div>
-                              ) : (
-                                "Click 'Estimate Gas' above to calculate"
-                              )}
-                            </div>
-                            <p className="text-yellow-600 dark:text-yellow-500 mt-1">
-                              ⚠️ {gasEstimate?.storageDeposit?.recommendation || "Storage deposit is required. Use gas estimation to calculate it."}
-                            </p>
-                            <details className="mt-2">
-                              <summary className="text-muted-foreground cursor-pointer hover:text-foreground">
-                                ℹ️ About storage deposit
-                              </summary>
-                              <div className="mt-2 bg-muted p-2 rounded">
-                                <p className="mb-2">Storage deposit covers the cost of storing your contract on-chain.</p>
-                                <p className="mb-2">It&apos;s calculated based on:</p>
-                                <ul className="list-disc ml-4 space-y-1">
-                                  <li>Contract bytecode size</li>
-                                  <li>Storage variables in your contract</li>
-                                  <li>Network storage costs per byte</li>
-                                </ul>
-                                <p className="mt-2 text-primary">💡 This deposit is refundable when you remove the contract!</p>
-                              </div>
-                            </details>
-                          </div>
-
-                          <div>
-                            <p className="text-muted-foreground mb-1">code (bytecode):</p>
-                            <p className="text-yellow-600 dark:text-yellow-500 mb-1">
-                              ⚠️ In Polkadot.js Apps, use &quot;file upload&quot; mode and paste the hex below
-                            </p>
-                            <div className="bg-muted rounded-md p-2 break-all font-mono">
-                              {contract.evm?.bytecode?.object || "No bytecode"}
-                            </div>
-                            <details className="mt-2">
-                              <summary className="text-muted-foreground cursor-pointer hover:text-foreground">
-                                ℹ️ How to input bytecode in Polkadot.js Apps
-                              </summary>
-                              <div className="mt-2 bg-muted p-2 rounded">
-                                <p className="mb-2">When filling the <code className="bg-background px-1">code</code> parameter:</p>
-                                <ol className="list-decimal ml-4 space-y-1">
-                                  <li>Select &quot;file upload&quot; from the dropdown</li>
-                                  <li>Click the text area that appears</li>
-                                  <li>Paste the bytecode hex string (including 0x prefix)</li>
-                                  <li>Or choose &quot;0x prefixed hex&quot; and paste directly</li>
-                                </ol>
-                                <p className="mt-2 text-yellow-600 dark:text-yellow-500">
-                                  Do NOT use &quot;upload&quot; enum - use raw hex input!
-                                </p>
-                              </div>
-                            </details>
-                          </div>
-
-                          <div>
-                            <p className="text-muted-foreground mb-1">data (constructor input):</p>
-                            <div className="bg-muted rounded-md p-2">
-                              <p className="mb-1 font-mono">0x</p>
-                              <details className="mt-2">
-                                <summary className="text-muted-foreground cursor-pointer hover:text-foreground">
-                                  ℹ️ About constructor data
-                                </summary>
-                                <div className="mt-2 bg-background p-2 rounded">
-                                  <p className="mb-1">The contract has no constructor parameters, so use empty data (0x).</p>
-                                  <p className="mb-1">If your contract has a constructor with parameters, you need to encode them.</p>
-                                </div>
-                              </details>
-                            </div>
-                          </div>
-
-                          <div>
-                            <p className="text-muted-foreground mb-1">salt:</p>
-                            <div className="bg-muted rounded-md p-2">None</div>
-                          </div>
-                        </div>
-                      )
-                    })
-                  )}
-                </div>
-              )
-            ) : (
-              <div className="space-y-4">
-                <div className="bg-card border border-border rounded-lg p-4">
-                  <div className="flex items-start gap-2">
-                    <Upload className="h-4 w-4 text-muted-foreground mt-0.5" />
-                    <div className="flex-1">
-                      <h3 className="text-sm font-semibold text-foreground mb-1">
-                        Ready to Compile
-                      </h3>
-                      <p className="text-xs text-muted-foreground">
-                        Click the Compile button to compile your Solidity contract.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-card border border-border rounded-lg p-4">
-                  <h3 className="text-sm font-semibold text-foreground mb-2">Contract Info</h3>
-                  <div className="space-y-2 text-xs">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Language:</span>
-                      <span className="text-foreground font-mono">Solidity</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Target:</span>
-                      <span className="text-foreground font-mono">Paseo Asset Hub</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Lines:</span>
-                      <span className="text-foreground font-mono">{code.split('\n').length}</span>
-                    </div>
-                  </div>
-                </div>
-
-                <Link
-                  href="/dashboard"
-                  className="block w-full px-6 py-3 text-center bg-background border border-border rounded-lg hover:border-primary hover:bg-primary hover:text-primary-foreground text-foreground transition-colors font-medium"
-                >
-                  Dashboard
-                </Link>
-
-                <a
-                  href="https://discord.gg/polkadot"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block w-full px-6 py-3 text-center bg-background border border-border rounded-lg hover:border-primary hover:bg-primary hover:text-primary-foreground text-foreground transition-colors font-medium"
-                >
-                  Get Help
-                </a>
-              </div>
-            )}
           </div>
         </div>
       </div>
