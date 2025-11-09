@@ -67,7 +67,7 @@ export default function MyContractsPage() {
   }, [contracts])
 
   const filteredContracts = useMemo(() => {
-    let filtered = contracts.filter((contract) => {
+    const filtered = contracts.filter((contract) => {
       const ownerMatch = ownerFilter === "all" ||
         (ownerFilter === "mine" && account?.address === contract.owner)
 

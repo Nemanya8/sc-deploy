@@ -25,7 +25,7 @@ function normalizeSeed(seed: string) {
 
   try {
     return encodeAddress(seed)
-  } catch (e) {
+  } catch {
     return seed
   }
 }
