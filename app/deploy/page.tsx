@@ -15,64 +15,23 @@ import { usePapiClient } from "@/lib/papi/hooks/use-papi-client"
 import { getWalletByType } from "@/lib/web3/wallets"
 import { getPolkadotSignerFromPjs } from "polkadot-api/pjs-signer"
 import { toast } from "sonner"
+import {
+  erc20,
+  erc721,
+  erc1155,
+  governor,
+  custom,
+  type ERC20Options,
+  type ERC721Options,
+  type ERC1155Options,
+  type GovernorOptions,
+  type CustomOptions,
+  infoDefaults
+} from "@openzeppelin/wizard"
 
-type ContractPreset = "ERC20" | "ERC721" | "ERC1155" | "Custom"
+type ContractPreset = "ERC20" | "ERC721" | "ERC1155" | "Governor" | "Custom"
 
-const PRESET_CONTRACTS = contractPresets as Record<ContractPreset, string>
-
-type VoteType = "none" | "block" | "timestamp"
-type AccessControl = "none" | "ownable" | "roles" | "managed"
-type Upgradeability = "none" | "transparent" | "uups"
-
-interface ERC20Settings {
-  name: string
-  symbol: string
-  premint: string
-  mintable: boolean
-  burnable: boolean
-  pausable: boolean
-  callback: boolean
-  permit: boolean
-  flashMinting: boolean
-  votes: VoteType
-  bridging: boolean
-  superchainERC20: boolean
-  accessControl: AccessControl
-  upgradeability: Upgradeability
-  securityContact: string
-  license: string
-}
-
-interface ERC721Settings {
-  name: string
-  symbol: string
-  baseURI: string
-  mintable: boolean
-  autoIncrementIds: boolean
-  burnable: boolean
-  pausable: boolean
-  enumerable: boolean
-  uriStorage: boolean
-  votes: VoteType
-  accessControl: AccessControl
-  upgradeability: Upgradeability
-  securityContact: string
-  license: string
-}
-
-interface ERC1155Settings {
-  name: string
-  uri: string
-  mintable: boolean
-  burnable: boolean
-  supplyTracking: boolean
-  pausable: boolean
-  updatableURI: boolean
-  accessControl: AccessControl
-  upgradeability: Upgradeability
-  securityContact: string
-  license: string
-}
+const PRESET_CONTRACTS = contractPresets as Record<Exclude<ContractPreset, "Governor">, string>
 
 export default function DeployPage() {
   const { account } = useAccount()
@@ -88,61 +47,59 @@ export default function DeployPage() {
   const [estimating, setEstimating] = useState(false)
   const [isDeploying, setIsDeploying] = useState(false)
 
-  const [erc20Settings, setErc20Settings] = useState<ERC20Settings>({
+  const [erc20Settings, setErc20Settings] = useState<Required<ERC20Options>>({
+    ...erc20.defaults,
     name: "MyToken",
     symbol: "MTK",
-    premint: "0",
-    mintable: false,
-    burnable: false,
-    pausable: false,
-    callback: false,
-    permit: false,
-    flashMinting: false,
-    votes: "none",
-    bridging: false,
-    superchainERC20: false,
-    accessControl: "none",
-    upgradeability: "none",
-    securityContact: "security@example.com",
-    license: "MIT"
+    premint: "",
+    upgradeable: false, // Disable upgradeability for Polkadot
+    info: { ...infoDefaults },
   })
 
-  const [erc721Settings, setErc721Settings] = useState<ERC721Settings>({
+  const [erc721Settings, setErc721Settings] = useState<Required<ERC721Options>>({
+    ...erc721.defaults,
     name: "MyToken",
     symbol: "MTK",
-    baseURI: "https://...",
-    mintable: false,
-    autoIncrementIds: false,
-    burnable: false,
-    pausable: false,
-    enumerable: false,
-    uriStorage: false,
-    votes: "none",
-    accessControl: "none",
-    upgradeability: "none",
-    securityContact: "security@example.com",
-    license: "MIT"
+    baseUri: "https://...",
+    upgradeable: false, // Disable upgradeability for Polkadot
+    info: { ...infoDefaults },
   })
 
-  const [erc1155Settings, setErc1155Settings] = useState<ERC1155Settings>({
+  const [erc1155Settings, setErc1155Settings] = useState<Required<ERC1155Options>>({
+    ...erc1155.defaults,
     name: "MyToken",
     uri: "https://...",
-    mintable: false,
-    burnable: false,
-    supplyTracking: false,
+    upgradeable: false, // Disable upgradeability for Polkadot
+    info: { ...infoDefaults },
+  })
+
+  const [governorSettings, setGovernorSettings] = useState<Required<GovernorOptions>>({
+    ...governor.defaults,
+    name: "MyGovernor",
+    delay: "1 day",
+    period: "1 week",
+    votes: "erc20votes",
+    upgradeable: false, // Disable upgradeability for Polkadot
+    info: { ...infoDefaults },
+  })
+
+  const [customSettings, setCustomSettings] = useState<Required<CustomOptions>>({
+    ...custom.defaults,
+    name: "MyContract",
     pausable: false,
-    updatableURI: false,
-    accessControl: "none",
-    upgradeability: "none",
-    securityContact: "security@example.com",
-    license: "MIT"
+    upgradeable: false, // Disable upgradeability for Polkadot
+    info: { ...infoDefaults },
   })
 
   const handlePresetChange = (preset: ContractPreset) => {
     setSelectedPreset(preset)
-    if (preset === "Custom") {
-      setCode(PRESET_CONTRACTS[preset])
-      setShowSettings(false)
+    if (preset === "Custom" || preset === "Governor") {
+      setShowSettings(true)
+      if (preset === "Custom") {
+        generateCustomContract()
+      } else {
+        generateGovernorContract()
+      }
     } else {
       setShowSettings(true)
       if (preset === "ERC20") {
@@ -156,214 +113,53 @@ export default function DeployPage() {
   }
 
   const generateERC20Contract = () => {
-    const { name, premint, mintable, burnable, pausable, permit, flashMinting, votes, accessControl, upgradeability, license } = erc20Settings
-
-    const inheritance = ["ERC20"]
-    const constructor_params = [`string memory _name`, `string memory _symbol`]
-    let constructor_body = `ERC20(_name, _symbol)`
-    let additional_functions = ""
-    let state_variables = ""
-
-    // Features
-    if (mintable) {
-      inheritance.push("ERC20Mintable")
-      additional_functions += `\n    function mint(address to, uint256 amount) public onlyOwner {\n        _mint(to, amount);\n    }\n`
+    try {
+      const contract = erc20.print(erc20Settings)
+      setCode(contract)
+    } catch (error) {
+      console.error("Error generating ERC20 contract:", error)
+      toast.error("Failed to generate contract")
     }
-
-    if (burnable) {
-      inheritance.push("ERC20Burnable")
-      additional_functions += `\n    function burn(uint256 amount) public {\n        _burn(msg.sender, amount);\n    }\n\n    function burnFrom(address account, uint256 amount) public {\n        _spendAllowance(account, msg.sender, amount);\n        _burn(account, amount);\n    }\n`
-    }
-
-    if (pausable) {
-      inheritance.push("Pausable")
-      additional_functions += `\n    function pause() public onlyOwner {\n        _pause();\n    }\n\n    function unpause() public onlyOwner {\n        _unpause();\n    }\n\n    function _beforeTokenTransfer(address from, address to, uint256 amount) internal override whenNotPaused {\n        super._beforeTokenTransfer(from, to, amount);\n    }\n`
-    }
-
-    if (permit) {
-      inheritance.push("ERC20Permit")
-      constructor_body += `, ERC20Permit(_name)`
-    }
-
-    if (flashMinting) {
-      inheritance.push("ERC20FlashMint")
-    }
-
-    // Votes
-    if (votes === "block") {
-      inheritance.push("ERC20Votes")
-      constructor_body += `, EIP712(_name, "1")`
-    } else if (votes === "timestamp") {
-      inheritance.push("ERC20VotesTimestamp")
-      constructor_body += `, EIP712(_name, "1")`
-    }
-
-    // Access Control
-    if (accessControl === "ownable") {
-      inheritance.push("Ownable")
-      constructor_body += `, Ownable(msg.sender)`
-    } else if (accessControl === "roles") {
-      inheritance.push("AccessControl")
-      state_variables += `\n    bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");\n    bytes32 public constant BURNER_ROLE = keccak256("BURNER_ROLE");\n`
-      constructor_body += `\n        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);\n        _grantRole(MINTER_ROLE, msg.sender);`
-    }
-
-    // Upgradeability
-    if (upgradeability === "transparent" || upgradeability === "uups") {
-      inheritance.push("Initializable")
-      inheritance.push("UUPSUpgradeable")
-      additional_functions += `\n    function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}\n`
-    }
-
-    // Premint
-    if (premint && parseInt(premint) > 0) {
-      constructor_body += `\n        _mint(msg.sender, ${premint} * 10 ** decimals());`
-    }
-
-    const contract = `// SPDX-License-Identifier: ${license}
-pragma solidity ^0.8.20;
-
-contract ${name.replace(/\s+/g, '')} is ${inheritance.join(", ")} {${state_variables}
-
-    constructor(${constructor_params.join(", ")}) ${constructor_body} {}${additional_functions}
-}
-`
-
-    setCode(contract)
   }
 
   const generateERC721Contract = () => {
-    const { name, mintable, autoIncrementIds, burnable, pausable, enumerable, uriStorage, votes, accessControl, upgradeability, license } = erc721Settings
-
-    const inheritance = ["ERC721"]
-    const constructor_params = [`string memory _name`, `string memory _symbol`]
-    let constructor_body = `ERC721(_name, _symbol)`
-    let additional_functions = ""
-    let state_variables = ""
-
-    // Features
-    if (enumerable) {
-      inheritance.push("ERC721Enumerable")
+    try {
+      const contract = erc721.print(erc721Settings)
+      setCode(contract)
+    } catch (error) {
+      console.error("Error generating ERC721 contract:", error)
+      toast.error("Failed to generate contract")
     }
-
-    if (uriStorage) {
-      inheritance.push("ERC721URIStorage")
-    }
-
-    if (mintable) {
-      if (autoIncrementIds) {
-        state_variables += `\n    uint256 private _tokenIdCounter;\n`
-        additional_functions += `\n    function safeMint(address to) public onlyOwner {\n        uint256 tokenId = _tokenIdCounter++;\n        _safeMint(to, tokenId);\n    }\n`
-      } else {
-        additional_functions += `\n    function safeMint(address to, uint256 tokenId) public onlyOwner {\n        _safeMint(to, tokenId);\n    }\n`
-      }
-    }
-
-    if (burnable) {
-      inheritance.push("ERC721Burnable")
-    }
-
-    if (pausable) {
-      inheritance.push("Pausable")
-      additional_functions += `\n    function pause() public onlyOwner {\n        _pause();\n    }\n\n    function unpause() public onlyOwner {\n        _unpause();\n    }\n`
-    }
-
-    // Votes
-    if (votes === "block") {
-      inheritance.push("ERC721Votes")
-      constructor_body += `, EIP712(_name, "1")`
-    } else if (votes === "timestamp") {
-      inheritance.push("ERC721VotesTimestamp")
-      constructor_body += `, EIP712(_name, "1")`
-    }
-
-    // Access Control
-    if (accessControl === "ownable") {
-      inheritance.push("Ownable")
-      constructor_body += `, Ownable(msg.sender)`
-    } else if (accessControl === "roles") {
-      inheritance.push("AccessControl")
-      state_variables += `\n    bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");\n`
-      constructor_body += `\n        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);\n        _grantRole(MINTER_ROLE, msg.sender);`
-    }
-
-    // Upgradeability
-    if (upgradeability === "transparent" || upgradeability === "uups") {
-      inheritance.push("Initializable")
-      inheritance.push("UUPSUpgradeable")
-      additional_functions += `\n    function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}\n`
-    }
-
-    const contract = `// SPDX-License-Identifier: ${license}
-pragma solidity ^0.8.20;
-
-contract ${name.replace(/\s+/g, '')} is ${inheritance.join(", ")} {${state_variables}
-
-    constructor(${constructor_params.join(", ")}) ${constructor_body} {}${additional_functions}
-}
-`
-
-    setCode(contract)
   }
 
   const generateERC1155Contract = () => {
-    const { name, mintable, burnable, supplyTracking, pausable, updatableURI, accessControl, upgradeability, license } = erc1155Settings
-
-    const inheritance = ["ERC1155"]
-    const constructor_params = [`string memory _uri`]
-    let constructor_body = `ERC1155(_uri)`
-    let additional_functions = ""
-    let state_variables = ""
-
-    // Features
-    if (supplyTracking) {
-      inheritance.push("ERC1155Supply")
+    try {
+      const contract = erc1155.print(erc1155Settings)
+      setCode(contract)
+    } catch (error) {
+      console.error("Error generating ERC1155 contract:", error)
+      toast.error("Failed to generate contract")
     }
+  }
 
-    if (mintable) {
-      additional_functions += `\n    function mint(address to, uint256 id, uint256 amount, bytes memory data) public onlyOwner {\n        _mint(to, id, amount, data);\n    }\n\n    function mintBatch(address to, uint256[] memory ids, uint256[] memory amounts, bytes memory data) public onlyOwner {\n        _mintBatch(to, ids, amounts, data);\n    }\n`
+  const generateGovernorContract = () => {
+    try {
+      const contract = governor.print(governorSettings)
+      setCode(contract)
+    } catch (error) {
+      console.error("Error generating Governor contract:", error)
+      toast.error("Failed to generate contract")
     }
+  }
 
-    if (burnable) {
-      inheritance.push("ERC1155Burnable")
+  const generateCustomContract = () => {
+    try {
+      const contract = custom.print(customSettings)
+      setCode(contract)
+    } catch (error) {
+      console.error("Error generating Custom contract:", error)
+      toast.error("Failed to generate contract")
     }
-
-    if (pausable) {
-      inheritance.push("Pausable")
-      additional_functions += `\n    function pause() public onlyOwner {\n        _pause();\n    }\n\n    function unpause() public onlyOwner {\n        _unpause();\n    }\n`
-    }
-
-    if (updatableURI) {
-      additional_functions += `\n    function setURI(string memory newuri) public onlyOwner {\n        _setURI(newuri);\n    }\n`
-    }
-
-    // Access Control
-    if (accessControl === "ownable") {
-      inheritance.push("Ownable")
-      constructor_body += `, Ownable(msg.sender)`
-    } else if (accessControl === "roles") {
-      inheritance.push("AccessControl")
-      state_variables += `\n    bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");\n`
-      constructor_body += `\n        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);\n        _grantRole(MINTER_ROLE, msg.sender);`
-    }
-
-    // Upgradeability
-    if (upgradeability === "transparent" || upgradeability === "uups") {
-      inheritance.push("Initializable")
-      inheritance.push("UUPSUpgradeable")
-      additional_functions += `\n    function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}\n`
-    }
-
-    const contract = `// SPDX-License-Identifier: ${license}
-pragma solidity ^0.8.20;
-
-contract ${name.replace(/\s+/g, '')} is ${inheritance.join(", ")} {${state_variables}
-
-    constructor(${constructor_params.join(", ")}) ${constructor_body} {}${additional_functions}
-}
-`
-
-    setCode(contract)
   }
 
   useEffect(() => {
@@ -373,19 +169,31 @@ contract ${name.replace(/\s+/g, '')} is ${inheritance.join(", ")} {${state_varia
       generateERC721Contract()
     } else if (selectedPreset === "ERC1155") {
       generateERC1155Contract()
+    } else if (selectedPreset === "Governor") {
+      generateGovernorContract()
+    } else if (selectedPreset === "Custom") {
+      generateCustomContract()
     }
-  }, [erc20Settings, erc721Settings, erc1155Settings, selectedPreset])
+  }, [erc20Settings, erc721Settings, erc1155Settings, governorSettings, customSettings, selectedPreset])
 
-  const updateERC20Setting = <K extends keyof ERC20Settings>(key: K, value: ERC20Settings[K]) => {
+  const updateERC20Setting = <K extends keyof Required<ERC20Options>>(key: K, value: Required<ERC20Options>[K]) => {
     setErc20Settings(prev => ({ ...prev, [key]: value }))
   }
 
-  const updateERC721Setting = <K extends keyof ERC721Settings>(key: K, value: ERC721Settings[K]) => {
+  const updateERC721Setting = <K extends keyof Required<ERC721Options>>(key: K, value: Required<ERC721Options>[K]) => {
     setErc721Settings(prev => ({ ...prev, [key]: value }))
   }
 
-  const updateERC1155Setting = <K extends keyof ERC1155Settings>(key: K, value: ERC1155Settings[K]) => {
+  const updateERC1155Setting = <K extends keyof Required<ERC1155Options>>(key: K, value: Required<ERC1155Options>[K]) => {
     setErc1155Settings(prev => ({ ...prev, [key]: value }))
+  }
+
+  const updateGovernorSetting = <K extends keyof Required<GovernorOptions>>(key: K, value: Required<GovernorOptions>[K]) => {
+    setGovernorSettings(prev => ({ ...prev, [key]: value }))
+  }
+
+  const updateCustomSetting = <K extends keyof Required<CustomOptions>>(key: K, value: Required<CustomOptions>[K]) => {
+    setCustomSettings(prev => ({ ...prev, [key]: value }))
   }
 
   const handleCompile = async () => {
@@ -409,22 +217,52 @@ contract ${name.replace(/\s+/g, '')} is ${inheritance.join(", ")} {${state_varia
 
         // Auto-estimate gas after successful compilation
         if (result.contracts) {
-          const fileName = Object.keys(result.contracts)[0]
+          // Look specifically for contract.sol (our main contract)
+          const fileName = "contract.sol"
+          if (!result.contracts[fileName]) {
+            toast.error("Main contract not found in compilation output")
+            return
+          }
+
           const contractName = Object.keys(result.contracts[fileName])[0]
           const contract = result.contracts[fileName][contractName]
-          const bytecode = contract.evm?.bytecode?.object
 
-          if (bytecode) {
-            handleEstimateGas(bytecode)
+          // Try different possible bytecode locations
+          let bytecode = contract.evm?.bytecode?.object ||
+                        contract.evm?.bytecode ||
+                        contract.bytecode?.object ||
+                        contract.bytecode ||
+                        contract.bin ||
+                        contract.binary
+
+          // If bytecode is an object, try to extract the actual hex string
+          if (bytecode && typeof bytecode === 'object') {
+            bytecode = bytecode.object || bytecode.bytecode || bytecode.hex
           }
+
+          if (bytecode && typeof bytecode === 'string') {
+            handleEstimateGas(bytecode)
+          } else {
+            toast.warning("Compilation succeeded but no bytecode found")
+          }
+        } else {
+          toast.warning("Compilation succeeded but no contracts found")
         }
       } else {
-        setCompilationOutput({ error: result.error })
-        toast.error("Compilation failed")
+        const errorMessage = result.error || result.message || 'Unknown compilation error'
+        setCompilationOutput({ error: errorMessage })
+        toast.error("Compilation failed", {
+          description: typeof errorMessage === 'string' ? errorMessage : JSON.stringify(errorMessage),
+          duration: 10000,
+        })
       }
     } catch (error) {
-      setCompilationOutput({ error: String(error) })
-      toast.error("Compilation failed")
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      setCompilationOutput({ error: errorMessage })
+      toast.error("Compilation failed", {
+        description: errorMessage,
+        duration: 10000,
+      })
     } finally {
       setIsCompiling(false)
     }
@@ -442,9 +280,24 @@ contract ${name.replace(/\s+/g, '')} is ${inheritance.join(", ")} {${state_varia
         body: JSON.stringify({ bytecode, data: "0x", value: "0" }),
       })
       const result = await response.json()
+
+      if (result.error) {
+        toast.error("Gas estimation failed", {
+          description: result.error,
+          duration: 5000,
+        })
+      } else {
+        toast.success("Gas estimated successfully")
+      }
+
       setGasEstimate(result)
     } catch (error) {
-      setGasEstimate({ error: String(error) })
+      const errorMsg = error instanceof Error ? error.message : String(error)
+      toast.error("Gas estimation failed", {
+        description: errorMsg,
+        duration: 5000,
+      })
+      setGasEstimate({ error: errorMsg })
     } finally {
       setEstimating(false)
     }
@@ -456,9 +309,13 @@ contract ${name.replace(/\s+/g, '')} is ${inheritance.join(", ")} {${state_varia
       return
     }
 
-    if (!compilationOutput || !gasEstimate) {
+    if (!compilationOutput) {
       toast.error("Please compile the contract first")
       return
+    }
+
+    if (!gasEstimate) {
+      toast.warning("Deploying without gas estimation - using default values")
     }
 
     if (!ready || !api) {
@@ -479,13 +336,29 @@ contract ${name.replace(/\s+/g, '')} is ${inheritance.join(", ")} {${state_varia
       }
 
       // Get bytecode from compilation output
-      const fileName = Object.keys(compilationOutput.contracts)[0]
+      const fileName = "contract.sol"
+      if (!compilationOutput.contracts[fileName]) {
+        throw new Error("contract.sol not found in compilation output")
+      }
+
       const contractName = Object.keys(compilationOutput.contracts[fileName])[0]
       const contract = compilationOutput.contracts[fileName][contractName]
-      const bytecode = contract.evm?.bytecode?.object
 
-      if (!bytecode) {
-        throw new Error("No bytecode found in compilation output")
+      // Try different possible bytecode locations (for different compiler outputs)
+      let bytecode = contract.evm?.bytecode?.object ||
+                    contract.evm?.bytecode ||
+                    contract.bytecode?.object ||
+                    contract.bytecode ||
+                    contract.bin ||
+                    contract.binary
+
+      // If bytecode is an object, try to extract the actual hex string
+      if (bytecode && typeof bytecode === 'object') {
+        bytecode = bytecode.object || bytecode.bytecode || bytecode.hex
+      }
+
+      if (!bytecode || typeof bytecode !== 'string') {
+        throw new Error(`No bytecode found in compilation output. Available properties: ${Object.keys(contract).join(', ')}`)
       }
 
       // Get the wallet provider
@@ -513,7 +386,7 @@ contract ${name.replace(/\s+/g, '')} is ${inheritance.join(", ")} {${state_varia
         const cleanHex = hex.startsWith('0x') ? hex.slice(2) : hex
         const bytes: number[] = []
         for (let i = 0; i < cleanHex.length; i += 2) {
-          bytes.push(parseInt(cleanHex.substr(i, 2), 16))
+          bytes.push(parseInt(cleanHex.substring(i, i + 2), 16))
         }
         return bytes
       }
@@ -556,10 +429,6 @@ contract ${name.replace(/\s+/g, '')} is ${inheritance.join(", ")} {${state_varia
       // Sign and submit the transaction
       const txHashResult = await tx.signAndSubmit(polkadotSigner)
 
-      // Log the result to see its structure
-      console.log("Transaction result:", txHashResult)
-      console.log("Transaction result type:", typeof txHashResult)
-
       // Extract the actual hash - it might be in different formats
       let txHash: string
       if (typeof txHashResult === 'string') {
@@ -572,8 +441,6 @@ contract ${name.replace(/\s+/g, '')} is ${inheritance.join(", ")} {${state_varia
       } else {
         txHash = String(txHashResult)
       }
-
-      console.log("Extracted hash:", txHash)
 
       toast.dismiss()
 
@@ -758,11 +625,11 @@ contract ${name.replace(/\s+/g, '')} is ${inheritance.join(", ")} {${state_varia
                   </div>
                   <div className="flex items-center space-x-2">
                     <Checkbox
-                      id="flashMinting"
-                      checked={erc20Settings.flashMinting}
-                      onCheckedChange={(checked) => updateERC20Setting("flashMinting", checked as boolean)}
+                      id="flashmint"
+                      checked={erc20Settings.flashmint}
+                      onCheckedChange={(checked) => updateERC20Setting("flashmint", checked as boolean)}
                     />
-                    <Label htmlFor="flashMinting" className="text-sm font-normal cursor-pointer">
+                    <Label htmlFor="flashmint" className="text-sm font-normal cursor-pointer">
                       Flash Minting
                     </Label>
                   </div>
@@ -774,7 +641,10 @@ contract ${name.replace(/\s+/g, '')} is ${inheritance.join(", ")} {${state_varia
               {/* Votes */}
               <div className="space-y-4">
                 <h3 className="text-xs font-semibold text-foreground uppercase tracking-wider">Votes</h3>
-                <RadioGroup value={erc20Settings.votes} onValueChange={(value) => updateERC20Setting("votes", value as VoteType)}>
+                <RadioGroup
+                  value={erc20Settings.votes === false ? "none" : String(erc20Settings.votes)}
+                  onValueChange={(value) => updateERC20Setting("votes", value === "none" ? false : value as "blocknumber" | "timestamp")}
+                >
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="none" id="votes-none" />
                     <Label htmlFor="votes-none" className="text-sm font-normal cursor-pointer">
@@ -782,7 +652,7 @@ contract ${name.replace(/\s+/g, '')} is ${inheritance.join(", ")} {${state_varia
                     </Label>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="block" id="votes-block" />
+                    <RadioGroupItem value="blocknumber" id="votes-block" />
                     <Label htmlFor="votes-block" className="text-sm font-normal cursor-pointer">
                       Block Number
                     </Label>
@@ -801,28 +671,29 @@ contract ${name.replace(/\s+/g, '')} is ${inheritance.join(", ")} {${state_varia
               {/* Cross-Chain Bridging */}
               <div className="space-y-4">
                 <h3 className="text-xs font-semibold text-foreground uppercase tracking-wider">Cross-Chain Bridging</h3>
-                <div className="space-y-3">
+                <RadioGroup
+                  value={erc20Settings.crossChainBridging === false ? "none" : erc20Settings.crossChainBridging}
+                  onValueChange={(value) => updateERC20Setting("crossChainBridging", value === "none" ? false : value as "custom" | "superchain")}
+                >
                   <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="bridging"
-                      checked={erc20Settings.bridging}
-                      onCheckedChange={(checked) => updateERC20Setting("bridging", checked as boolean)}
-                    />
-                    <Label htmlFor="bridging" className="text-sm font-normal cursor-pointer">
+                    <RadioGroupItem value="none" id="bridging-none" />
+                    <Label htmlFor="bridging-none" className="text-sm font-normal cursor-pointer">
+                      None
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="custom" id="bridging-custom" />
+                    <Label htmlFor="bridging-custom" className="text-sm font-normal cursor-pointer">
                       Custom
                     </Label>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="superchainERC20"
-                      checked={erc20Settings.superchainERC20}
-                      onCheckedChange={(checked) => updateERC20Setting("superchainERC20", checked as boolean)}
-                    />
-                    <Label htmlFor="superchainERC20" className="text-sm font-normal cursor-pointer">
+                    <RadioGroupItem value="superchain" id="bridging-superchain" />
+                    <Label htmlFor="bridging-superchain" className="text-sm font-normal cursor-pointer">
                       SuperchainERC20
                     </Label>
                   </div>
-                </div>
+                </RadioGroup>
               </div>
 
               <Separator />
@@ -830,7 +701,10 @@ contract ${name.replace(/\s+/g, '')} is ${inheritance.join(", ")} {${state_varia
               {/* Access Control */}
               <div className="space-y-4">
                 <h3 className="text-xs font-semibold text-foreground uppercase tracking-wider">Access Control</h3>
-                <RadioGroup value={erc20Settings.accessControl} onValueChange={(value) => updateERC20Setting("accessControl", value as AccessControl)}>
+                <RadioGroup
+                  value={erc20Settings.access === false ? "none" : erc20Settings.access}
+                  onValueChange={(value) => updateERC20Setting("access", value === "none" ? false : value as "ownable" | "roles" | "managed")}
+                >
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="none" id="access-none" />
                     <Label htmlFor="access-none" className="text-sm font-normal cursor-pointer">
@@ -860,33 +734,6 @@ contract ${name.replace(/\s+/g, '')} is ${inheritance.join(", ")} {${state_varia
 
               <Separator />
 
-              {/* Upgradeability */}
-              <div className="space-y-4">
-                <h3 className="text-xs font-semibold text-foreground uppercase tracking-wider">Upgradeability</h3>
-                <RadioGroup value={erc20Settings.upgradeability} onValueChange={(value) => updateERC20Setting("upgradeability", value as Upgradeability)}>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="none" id="upgrade-none" />
-                    <Label htmlFor="upgrade-none" className="text-sm font-normal cursor-pointer">
-                      None
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="transparent" id="upgrade-transparent" />
-                    <Label htmlFor="upgrade-transparent" className="text-sm font-normal cursor-pointer">
-                      Transparent
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="uups" id="upgrade-uups" />
-                    <Label htmlFor="upgrade-uups" className="text-sm font-normal cursor-pointer">
-                      UUPS
-                    </Label>
-                  </div>
-                </RadioGroup>
-              </div>
-
-              <Separator />
-
               {/* Info */}
               <div className="space-y-4">
                 <h3 className="text-xs font-semibold text-foreground uppercase tracking-wider">Info</h3>
@@ -895,8 +742,8 @@ contract ${name.replace(/\s+/g, '')} is ${inheritance.join(", ")} {${state_varia
                   <Input
                     id="securityContact"
                     type="email"
-                    value={erc20Settings.securityContact}
-                    onChange={(e) => updateERC20Setting("securityContact", e.target.value)}
+                    value={erc20Settings.info.securityContact}
+                    onChange={(e) => updateERC20Setting("info", { ...erc20Settings.info, securityContact: e.target.value })}
                     className="h-8"
                   />
                 </div>
@@ -905,8 +752,8 @@ contract ${name.replace(/\s+/g, '')} is ${inheritance.join(", ")} {${state_varia
                   <Input
                     id="license"
                     type="text"
-                    value={erc20Settings.license}
-                    onChange={(e) => updateERC20Setting("license", e.target.value)}
+                    value={erc20Settings.info.license}
+                    onChange={(e) => updateERC20Setting("info", { ...erc20Settings.info, license: e.target.value })}
                     className="h-8"
                   />
                 </div>
@@ -946,12 +793,12 @@ contract ${name.replace(/\s+/g, '')} is ${inheritance.join(", ")} {${state_varia
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="erc721-baseURI" className="text-xs">Base URI</Label>
+                  <Label htmlFor="erc721-baseUri" className="text-xs">Base URI</Label>
                   <Input
-                    id="erc721-baseURI"
+                    id="erc721-baseUri"
                     type="text"
-                    value={erc721Settings.baseURI}
-                    onChange={(e) => updateERC721Setting("baseURI", e.target.value)}
+                    value={erc721Settings.baseUri}
+                    onChange={(e) => updateERC721Setting("baseUri", e.target.value)}
                     className="h-8"
                   />
                 </div>
@@ -975,11 +822,11 @@ contract ${name.replace(/\s+/g, '')} is ${inheritance.join(", ")} {${state_varia
                   </div>
                   <div className="flex items-center space-x-2">
                     <Checkbox
-                      id="erc721-autoIncrementIds"
-                      checked={erc721Settings.autoIncrementIds}
-                      onCheckedChange={(checked) => updateERC721Setting("autoIncrementIds", checked as boolean)}
+                      id="erc721-incremental"
+                      checked={erc721Settings.incremental}
+                      onCheckedChange={(checked) => updateERC721Setting("incremental", checked as boolean)}
                     />
-                    <Label htmlFor="erc721-autoIncrementIds" className="text-sm font-normal cursor-pointer">
+                    <Label htmlFor="erc721-incremental" className="text-sm font-normal cursor-pointer">
                       Auto Increment Ids
                     </Label>
                   </div>
@@ -1031,7 +878,10 @@ contract ${name.replace(/\s+/g, '')} is ${inheritance.join(", ")} {${state_varia
               {/* Votes */}
               <div className="space-y-4">
                 <h3 className="text-xs font-semibold text-foreground uppercase tracking-wider">Votes</h3>
-                <RadioGroup value={erc721Settings.votes} onValueChange={(value) => updateERC721Setting("votes", value as VoteType)}>
+                <RadioGroup
+                  value={erc721Settings.votes === false ? "none" : String(erc721Settings.votes)}
+                  onValueChange={(value) => updateERC721Setting("votes", value === "none" ? false : value as "blocknumber" | "timestamp")}
+                >
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="none" id="erc721-votes-none" />
                     <Label htmlFor="erc721-votes-none" className="text-sm font-normal cursor-pointer">
@@ -1039,7 +889,7 @@ contract ${name.replace(/\s+/g, '')} is ${inheritance.join(", ")} {${state_varia
                     </Label>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="block" id="erc721-votes-block" />
+                    <RadioGroupItem value="blocknumber" id="erc721-votes-block" />
                     <Label htmlFor="erc721-votes-block" className="text-sm font-normal cursor-pointer">
                       Block Number
                     </Label>
@@ -1058,7 +908,10 @@ contract ${name.replace(/\s+/g, '')} is ${inheritance.join(", ")} {${state_varia
               {/* Access Control */}
               <div className="space-y-4">
                 <h3 className="text-xs font-semibold text-foreground uppercase tracking-wider">Access Control</h3>
-                <RadioGroup value={erc721Settings.accessControl} onValueChange={(value) => updateERC721Setting("accessControl", value as AccessControl)}>
+                <RadioGroup
+                  value={erc721Settings.access === false ? "none" : erc721Settings.access}
+                  onValueChange={(value) => updateERC721Setting("access", value === "none" ? false : value as "ownable" | "roles" | "managed")}
+                >
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="none" id="erc721-access-none" />
                     <Label htmlFor="erc721-access-none" className="text-sm font-normal cursor-pointer">
@@ -1088,33 +941,6 @@ contract ${name.replace(/\s+/g, '')} is ${inheritance.join(", ")} {${state_varia
 
               <Separator />
 
-              {/* Upgradeability */}
-              <div className="space-y-4">
-                <h3 className="text-xs font-semibold text-foreground uppercase tracking-wider">Upgradeability</h3>
-                <RadioGroup value={erc721Settings.upgradeability} onValueChange={(value) => updateERC721Setting("upgradeability", value as Upgradeability)}>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="none" id="erc721-upgrade-none" />
-                    <Label htmlFor="erc721-upgrade-none" className="text-sm font-normal cursor-pointer">
-                      None
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="transparent" id="erc721-upgrade-transparent" />
-                    <Label htmlFor="erc721-upgrade-transparent" className="text-sm font-normal cursor-pointer">
-                      Transparent
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="uups" id="erc721-upgrade-uups" />
-                    <Label htmlFor="erc721-upgrade-uups" className="text-sm font-normal cursor-pointer">
-                      UUPS
-                    </Label>
-                  </div>
-                </RadioGroup>
-              </div>
-
-              <Separator />
-
               {/* Info */}
               <div className="space-y-4">
                 <h3 className="text-xs font-semibold text-foreground uppercase tracking-wider">Info</h3>
@@ -1123,8 +949,8 @@ contract ${name.replace(/\s+/g, '')} is ${inheritance.join(", ")} {${state_varia
                   <Input
                     id="erc721-securityContact"
                     type="email"
-                    value={erc721Settings.securityContact}
-                    onChange={(e) => updateERC721Setting("securityContact", e.target.value)}
+                    value={erc721Settings.info.securityContact}
+                    onChange={(e) => updateERC721Setting("info", { ...erc721Settings.info, securityContact: e.target.value })}
                     className="h-8"
                   />
                 </div>
@@ -1133,8 +959,8 @@ contract ${name.replace(/\s+/g, '')} is ${inheritance.join(", ")} {${state_varia
                   <Input
                     id="erc721-license"
                     type="text"
-                    value={erc721Settings.license}
-                    onChange={(e) => updateERC721Setting("license", e.target.value)}
+                    value={erc721Settings.info.license}
+                    onChange={(e) => updateERC721Setting("info", { ...erc721Settings.info, license: e.target.value })}
                     className="h-8"
                   />
                 </div>
@@ -1203,11 +1029,11 @@ contract ${name.replace(/\s+/g, '')} is ${inheritance.join(", ")} {${state_varia
                   </div>
                   <div className="flex items-center space-x-2">
                     <Checkbox
-                      id="erc1155-supplyTracking"
-                      checked={erc1155Settings.supplyTracking}
-                      onCheckedChange={(checked) => updateERC1155Setting("supplyTracking", checked as boolean)}
+                      id="erc1155-supply"
+                      checked={erc1155Settings.supply}
+                      onCheckedChange={(checked) => updateERC1155Setting("supply", checked as boolean)}
                     />
-                    <Label htmlFor="erc1155-supplyTracking" className="text-sm font-normal cursor-pointer">
+                    <Label htmlFor="erc1155-supply" className="text-sm font-normal cursor-pointer">
                       Supply Tracking
                     </Label>
                   </div>
@@ -1223,11 +1049,11 @@ contract ${name.replace(/\s+/g, '')} is ${inheritance.join(", ")} {${state_varia
                   </div>
                   <div className="flex items-center space-x-2">
                     <Checkbox
-                      id="erc1155-updatableURI"
-                      checked={erc1155Settings.updatableURI}
-                      onCheckedChange={(checked) => updateERC1155Setting("updatableURI", checked as boolean)}
+                      id="erc1155-updatableUri"
+                      checked={erc1155Settings.updatableUri}
+                      onCheckedChange={(checked) => updateERC1155Setting("updatableUri", checked as boolean)}
                     />
-                    <Label htmlFor="erc1155-updatableURI" className="text-sm font-normal cursor-pointer">
+                    <Label htmlFor="erc1155-updatableUri" className="text-sm font-normal cursor-pointer">
                       Updatable URI
                     </Label>
                   </div>
@@ -1239,7 +1065,10 @@ contract ${name.replace(/\s+/g, '')} is ${inheritance.join(", ")} {${state_varia
               {/* Access Control */}
               <div className="space-y-4">
                 <h3 className="text-xs font-semibold text-foreground uppercase tracking-wider">Access Control</h3>
-                <RadioGroup value={erc1155Settings.accessControl} onValueChange={(value) => updateERC1155Setting("accessControl", value as AccessControl)}>
+                <RadioGroup
+                  value={erc1155Settings.access === false ? "none" : erc1155Settings.access}
+                  onValueChange={(value) => updateERC1155Setting("access", value === "none" ? false : value as "ownable" | "roles" | "managed")}
+                >
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="none" id="erc1155-access-none" />
                     <Label htmlFor="erc1155-access-none" className="text-sm font-normal cursor-pointer">
@@ -1269,26 +1098,274 @@ contract ${name.replace(/\s+/g, '')} is ${inheritance.join(", ")} {${state_varia
 
               <Separator />
 
-              {/* Upgradeability */}
+              {/* Info */}
               <div className="space-y-4">
-                <h3 className="text-xs font-semibold text-foreground uppercase tracking-wider">Upgradeability</h3>
-                <RadioGroup value={erc1155Settings.upgradeability} onValueChange={(value) => updateERC1155Setting("upgradeability", value as Upgradeability)}>
+                <h3 className="text-xs font-semibold text-foreground uppercase tracking-wider">Info</h3>
+                <div className="space-y-2">
+                  <Label htmlFor="erc1155-securityContact" className="text-xs">Security Contact</Label>
+                  <Input
+                    id="erc1155-securityContact"
+                    type="email"
+                    value={erc1155Settings.info.securityContact}
+                    onChange={(e) => updateERC1155Setting("info", { ...erc1155Settings.info, securityContact: e.target.value })}
+                    className="h-8"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="erc1155-license" className="text-xs">License</Label>
+                  <Input
+                    id="erc1155-license"
+                    type="text"
+                    value={erc1155Settings.info.license}
+                    onChange={(e) => updateERC1155Setting("info", { ...erc1155Settings.info, license: e.target.value })}
+                    className="h-8"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Settings Sidebar for Governor */}
+        {selectedPreset === "Governor" && showSettings && (
+          <div className="w-full lg:w-80 flex flex-col border-r border-border bg-muted/30 overflow-auto">
+            <div className="border-b border-border bg-muted/50 px-4 py-2">
+              <h2 className="text-sm font-semibold text-foreground">Governor Settings</h2>
+            </div>
+            <div className="flex-1 p-4 space-y-6 overflow-auto">
+              {/* Basic Settings */}
+              <div className="space-y-4">
+                <h3 className="text-xs font-semibold text-foreground uppercase tracking-wider">Settings</h3>
+                <div className="space-y-2">
+                  <Label htmlFor="governor-name" className="text-xs">Name</Label>
+                  <Input
+                    id="governor-name"
+                    type="text"
+                    value={governorSettings.name}
+                    onChange={(e) => updateGovernorSetting("name", e.target.value)}
+                    className="h-8"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="governor-delay" className="text-xs">Voting Delay</Label>
+                  <Input
+                    id="governor-delay"
+                    type="text"
+                    value={governorSettings.delay}
+                    onChange={(e) => updateGovernorSetting("delay", e.target.value)}
+                    className="h-8"
+                    placeholder="1 day"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="governor-period" className="text-xs">Voting Period</Label>
+                  <Input
+                    id="governor-period"
+                    type="text"
+                    value={governorSettings.period}
+                    onChange={(e) => updateGovernorSetting("period", e.target.value)}
+                    className="h-8"
+                    placeholder="1 week"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="governor-threshold" className="text-xs">Proposal Threshold</Label>
+                  <Input
+                    id="governor-threshold"
+                    type="text"
+                    value={governorSettings.proposalThreshold || ""}
+                    onChange={(e) => updateGovernorSetting("proposalThreshold", e.target.value)}
+                    className="h-8"
+                    placeholder="0"
+                  />
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Votes */}
+              <div className="space-y-4">
+                <h3 className="text-xs font-semibold text-foreground uppercase tracking-wider">Votes</h3>
+                <RadioGroup
+                  value={governorSettings.votes || "erc20votes"}
+                  onValueChange={(value) => updateGovernorSetting("votes", value as "erc20votes" | "erc721votes")}
+                >
                   <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="none" id="erc1155-upgrade-none" />
-                    <Label htmlFor="erc1155-upgrade-none" className="text-sm font-normal cursor-pointer">
+                    <RadioGroupItem value="erc20votes" id="gov-votes-erc20" />
+                    <Label htmlFor="gov-votes-erc20" className="text-sm font-normal cursor-pointer">
+                      ERC20Votes
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="erc721votes" id="gov-votes-erc721" />
+                    <Label htmlFor="gov-votes-erc721" className="text-sm font-normal cursor-pointer">
+                      ERC721Votes
+                    </Label>
+                  </div>
+                </RadioGroup>
+              </div>
+
+              <Separator />
+
+              {/* Timelock */}
+              <div className="space-y-4">
+                <h3 className="text-xs font-semibold text-foreground uppercase tracking-wider">Timelock</h3>
+                <RadioGroup
+                  value={governorSettings.timelock === false ? "none" : governorSettings.timelock}
+                  onValueChange={(value) => updateGovernorSetting("timelock", value === "none" ? false : value as "openzeppelin" | "compound")}
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="none" id="gov-timelock-none" />
+                    <Label htmlFor="gov-timelock-none" className="text-sm font-normal cursor-pointer">
                       None
                     </Label>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="transparent" id="erc1155-upgrade-transparent" />
-                    <Label htmlFor="erc1155-upgrade-transparent" className="text-sm font-normal cursor-pointer">
-                      Transparent
+                    <RadioGroupItem value="openzeppelin" id="gov-timelock-oz" />
+                    <Label htmlFor="gov-timelock-oz" className="text-sm font-normal cursor-pointer">
+                      OpenZeppelin
                     </Label>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="uups" id="erc1155-upgrade-uups" />
-                    <Label htmlFor="erc1155-upgrade-uups" className="text-sm font-normal cursor-pointer">
-                      UUPS
+                    <RadioGroupItem value="compound" id="gov-timelock-compound" />
+                    <Label htmlFor="gov-timelock-compound" className="text-sm font-normal cursor-pointer">
+                      Compound
+                    </Label>
+                  </div>
+                </RadioGroup>
+              </div>
+
+              <Separator />
+
+              {/* Features */}
+              <div className="space-y-4">
+                <h3 className="text-xs font-semibold text-foreground uppercase tracking-wider">Features</h3>
+                <div className="space-y-3">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="gov-storage"
+                      checked={governorSettings.storage}
+                      onCheckedChange={(checked) => updateGovernorSetting("storage", checked as boolean)}
+                    />
+                    <Label htmlFor="gov-storage" className="text-sm font-normal cursor-pointer">
+                      Storage
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="gov-settings"
+                      checked={governorSettings.settings}
+                      onCheckedChange={(checked) => updateGovernorSetting("settings", checked as boolean)}
+                    />
+                    <Label htmlFor="gov-settings" className="text-sm font-normal cursor-pointer">
+                      Settings
+                    </Label>
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Info */}
+              <div className="space-y-4">
+                <h3 className="text-xs font-semibold text-foreground uppercase tracking-wider">Info</h3>
+                <div className="space-y-2">
+                  <Label htmlFor="governor-securityContact" className="text-xs">Security Contact</Label>
+                  <Input
+                    id="governor-securityContact"
+                    type="email"
+                    value={governorSettings.info.securityContact}
+                    onChange={(e) => updateGovernorSetting("info", { ...governorSettings.info, securityContact: e.target.value })}
+                    className="h-8"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="governor-license" className="text-xs">License</Label>
+                  <Input
+                    id="governor-license"
+                    type="text"
+                    value={governorSettings.info.license}
+                    onChange={(e) => updateGovernorSetting("info", { ...governorSettings.info, license: e.target.value })}
+                    className="h-8"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Settings Sidebar for Custom */}
+        {selectedPreset === "Custom" && showSettings && (
+          <div className="w-full lg:w-80 flex flex-col border-r border-border bg-muted/30 overflow-auto">
+            <div className="border-b border-border bg-muted/50 px-4 py-2">
+              <h2 className="text-sm font-semibold text-foreground">Custom Settings</h2>
+            </div>
+            <div className="flex-1 p-4 space-y-6 overflow-auto">
+              {/* Basic Settings */}
+              <div className="space-y-4">
+                <h3 className="text-xs font-semibold text-foreground uppercase tracking-wider">Settings</h3>
+                <div className="space-y-2">
+                  <Label htmlFor="custom-name" className="text-xs">Name</Label>
+                  <Input
+                    id="custom-name"
+                    type="text"
+                    value={customSettings.name}
+                    onChange={(e) => updateCustomSetting("name", e.target.value)}
+                    className="h-8"
+                  />
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Features */}
+              <div className="space-y-4">
+                <h3 className="text-xs font-semibold text-foreground uppercase tracking-wider">Features</h3>
+                <div className="space-y-3">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="custom-pausable"
+                      checked={customSettings.pausable}
+                      onCheckedChange={(checked) => updateCustomSetting("pausable", checked as boolean)}
+                    />
+                    <Label htmlFor="custom-pausable" className="text-sm font-normal cursor-pointer">
+                      Pausable
+                    </Label>
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Access Control */}
+              <div className="space-y-4">
+                <h3 className="text-xs font-semibold text-foreground uppercase tracking-wider">Access Control</h3>
+                <RadioGroup
+                  value={customSettings.access === false ? "none" : customSettings.access}
+                  onValueChange={(value) => updateCustomSetting("access", value === "none" ? false : value as "ownable" | "roles" | "managed")}
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="none" id="custom-access-none" />
+                    <Label htmlFor="custom-access-none" className="text-sm font-normal cursor-pointer">
+                      None
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="ownable" id="custom-access-ownable" />
+                    <Label htmlFor="custom-access-ownable" className="text-sm font-normal cursor-pointer">
+                      Ownable
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="roles" id="custom-access-roles" />
+                    <Label htmlFor="custom-access-roles" className="text-sm font-normal cursor-pointer">
+                      Roles
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="managed" id="custom-access-managed" />
+                    <Label htmlFor="custom-access-managed" className="text-sm font-normal cursor-pointer">
+                      Managed
                     </Label>
                   </div>
                 </RadioGroup>
@@ -1300,22 +1377,22 @@ contract ${name.replace(/\s+/g, '')} is ${inheritance.join(", ")} {${state_varia
               <div className="space-y-4">
                 <h3 className="text-xs font-semibold text-foreground uppercase tracking-wider">Info</h3>
                 <div className="space-y-2">
-                  <Label htmlFor="erc1155-securityContact" className="text-xs">Security Contact</Label>
+                  <Label htmlFor="custom-securityContact" className="text-xs">Security Contact</Label>
                   <Input
-                    id="erc1155-securityContact"
+                    id="custom-securityContact"
                     type="email"
-                    value={erc1155Settings.securityContact}
-                    onChange={(e) => updateERC1155Setting("securityContact", e.target.value)}
+                    value={customSettings.info.securityContact}
+                    onChange={(e) => updateCustomSetting("info", { ...customSettings.info, securityContact: e.target.value })}
                     className="h-8"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="erc1155-license" className="text-xs">License</Label>
+                  <Label htmlFor="custom-license" className="text-xs">License</Label>
                   <Input
-                    id="erc1155-license"
+                    id="custom-license"
                     type="text"
-                    value={erc1155Settings.license}
-                    onChange={(e) => updateERC1155Setting("license", e.target.value)}
+                    value={customSettings.info.license}
+                    onChange={(e) => updateCustomSetting("info", { ...customSettings.info, license: e.target.value })}
                     className="h-8"
                   />
                 </div>
@@ -1330,7 +1407,7 @@ contract ${name.replace(/\s+/g, '')} is ${inheritance.join(", ")} {${state_varia
               <h2 className="text-sm font-semibold text-foreground">Contract Editor</h2>
             </div>
             <div className="flex items-center gap-2">
-              {(["ERC20", "ERC721", "ERC1155", "Custom"] as ContractPreset[]).map((preset) => (
+              {(["ERC20", "ERC721", "ERC1155", "Governor", "Custom"] as ContractPreset[]).map((preset) => (
                 <button
                   key={preset}
                   onClick={() => handlePresetChange(preset)}
